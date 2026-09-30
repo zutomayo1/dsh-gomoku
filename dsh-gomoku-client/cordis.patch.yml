@@ -1,0 +1,15 @@
+# 组合包（bundle）patch 层：在 profile 根之上插入本插件自己的 Loader 行。
+#
+# ⚠️ 本包是**纯客户端**插件：`lib/index.js` 的 apply 是空函数，宿主侧什么都不做。
+# 这不是偷懒，而是实测约束——只要 package.json 里出现 `dsh.client` 字段，**宿主
+# 半侧就不会激活**（A/B/C 对照：同一份宿主代码，仅增删该字段，带字段时
+# `/plugins/.../state` 一律 404，去掉即 200，与 `inject` 内容无关）。
+#
+# 因此棋局的权威状态与工具放在**另一个包** `dsh-gomoku-host`（不含 `dsh.client`），
+# 本包只负责把 lib/client.js 交给 dsh-client-modules 下发到浏览器。
+#
+# 新增行必须写在 `insert` 之下：顶层的 `- id: <已有行>` 是"按 id 覆盖已有行"的形式，
+# 直接写 id 只会被当作找不到目标行的覆盖而丢弃，配置保持不变。
+- insert:
+    - id: gomoku-client
+      name: dsh-gomoku-client

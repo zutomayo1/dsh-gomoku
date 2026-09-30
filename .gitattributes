@@ -1,0 +1,8 @@
+# 统一换行：仓库里存 LF，检出时按平台；PowerShell 脚本在 Windows 上用 CRLF 更顺手。
+* text=auto eol=lf
+*.ps1 text eol=crlf
+
+# 构建产物虽然由 tools/build.mjs 生成，但 DSH 直接加载它，所以**要**进版本库。
+# 这里只是别让 git 把它当二进制或做二次换行转换。
+dsh-gomoku-host/lib/index.js text eol=lf
+dsh-gomoku-client/lib/client.js text eol=lf
