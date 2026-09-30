@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Gomoku · Host",
+    "description": "Authoritative board state, the local playing engine, four agent tools and the /gomoku routes. Install together with the board half."
+  }
+}

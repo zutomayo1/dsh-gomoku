@@ -1,6 +1,6 @@
 {
   "name": "dsh-gomoku-host",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "五子棋（Gomoku）· Host 半侧：权威棋局状态、本地棋力内核、四个 agent 工具与人类点击用的 HTTP 路由",
   "keywords": [
     "deepseek",
@@ -18,7 +18,8 @@
       "default": "./lib/index.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib/index.js",
@@ -26,7 +27,9 @@
     "tools/build.mjs",
     "test/**/*.mjs",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "icon.svg",
+    "locale/*.json"
   ],
   "scripts": {
     "build": "node tools/build.mjs",
@@ -38,5 +41,6 @@
       "patch": "./cordis.patch.yml"
     }
   },
+  "icon": "./icon.svg",
   "license": "MIT"
 }

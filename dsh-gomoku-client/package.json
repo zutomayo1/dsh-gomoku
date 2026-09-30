@@ -1,6 +1,6 @@
 {
   "name": "dsh-gomoku-client",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "五子棋（Gomoku）· 浏览器半侧：右侧边栏里的棋盘（边聊边下），对手可切换本地引擎/模型",
   "keywords": [
     "deepseek",
@@ -21,14 +21,17 @@
       "default": "./lib/client.js"
     },
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib/index.js",
     "lib/client.js",
     "test/**/*.mjs",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "icon.svg",
+    "locale/*.json"
   ],
   "scripts": {
     "test": "node test/client-check.mjs"
@@ -42,5 +45,6 @@
       "patch": "./cordis.patch.yml"
     }
   },
+  "icon": "./icon.svg",
   "license": "MIT"
 }

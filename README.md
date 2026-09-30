@@ -60,6 +60,48 @@ install_bundle  <repo>/dsh-gomoku-client
   剥掉相对导入后内联成一个文件。这不是洁癖——插件以符号链接装进 profile，相对导入经 symlink
   会落到 profile 包表之外而被解析拦截层拒绝，表现为"装的时候能用、一重启就挡住整个 Web 启动"。
 
+## 插件列表里的图标与文案
+
+设置里那张插件列表，每行左边那格图标**不是一张静态图片，也没有对应路由**。DSH 的
+`app-boot` 在读插件元数据时，把 `package.json` 顶层的 `icon` **读成字节、内联成 data URL**
+（`data:image/svg+xml;base64,…`），客户端拿它直接 `<img src>`：
+
+```js
+// dsh-app-boot: iconOf()
+const file = realpathSync(resolve(dirname(manifestPath), icon));
+return `data:${mediaType};base64,${readFileSync(file).toString('base64')}`;
+```
+
+所以约束是硬的，而且**全都不会在构建期报错**——写错了只会安静地退回那个通用占位图：
+
+| 约束 | 值 |
+|---|---|
+| 位置 | `package.json` **顶层**的 `icon`（不是 `dsh` 段里） |
+| 路径 | 必须是**相对路径**；绝对路径、`data:`、任何带 scheme 的都会被拒 |
+| 扩展名 | `.svg` / `.png` / `.jpg` / `.jpeg` / `.webp` |
+| 范围 | realpath 之后仍在清单所在目录内（`link:` 安装要能穿过符号链接） |
+| 大小 | **≤ 256 KiB**（原始字节） |
+
+还有一个更隐蔽的坑：**元数据是"从包的 exports 里解析 `<包>/package.json`"读出来的**。
+所以只要没导出 `./package.json`，**标题、描述、图标会一起消失**（`readPluginMeta` 直接
+返回 undefined），列表里只剩包名加一个占位图——看起来像"这个插件没做图标"，其实是清单
+压根没被读到。
+
+要在列表里显示**中文标题与描述**，就走本地化：`locale/<语言>.json`，形状是
+
+```json
+{ "meta": { "title": "五子棋 · 棋盘", "description": "常驻右侧边栏的可点击棋盘——一边聊一边下棋。" } }
+```
+
+并且**必须导出 `./locale/*.json`**（英文 `en.json` 是锚点，其余语言和它同目录）。
+
+这套规则由 `tools/check-manifest.mjs` 复刻并逐条校验（常量与判定逻辑都是从 `app-boot` 的
+`iconOf` / `readPluginMeta` / `dictionariesOf` 抄下来的，不是凭印象写的）：
+
+```powershell
+node tools/check-manifest.mjs    # 33 项：图标规则 + exports 可达性 + 本地化形状
+```
+
 ## 自检
 
 三个包各自带一套可以在**不启动 DSH** 的情况下跑的测试：
@@ -69,6 +111,7 @@ cd dsh-gomoku-host   ; node test/engine.test.mjs   # 规则内核
 cd dsh-gomoku-host   ; node test/ai.test.mjs       # 棋力内核（含引擎自对弈）
 cd dsh-gomoku-host   ; node test/activate.mjs      # 宿主：桩 ctx 走一遍注册/工具/路由/卸载
 cd dsh-gomoku-client ; node test/client-check.mjs  # 客户端：桩 __ModuleLoader__ + 迷你 React
+node tools/check-manifest.mjs                      # 插件列表的图标/文案元数据
 ```
 
 客户端那一套尤其值得留着：浏览器半侧的失败**在源头就被丢弃**（DSH 的 web boot 内核审计循环
