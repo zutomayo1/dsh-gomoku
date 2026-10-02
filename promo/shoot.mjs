@@ -81,9 +81,16 @@ class CDP {
       this.listeners.set(method, list);
     });
   }
+  on(method, fn) {
+    const list = this.listeners.get(method) ?? [];
+    list.push(fn);
+    this.listeners.set(method, list);
+  }
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/** 起过的子进程都记在这里，异常路径由 process 钩子统一收掉。 */
+const CHILDREN = [];
 
 async function main() {
   console.log(`chrome   : ${CHROME}`);
@@ -110,6 +117,7 @@ async function main() {
     `--window-size=${WIDTH},${HEIGHT}`,
     'about:blank',
   ], { stdio: 'ignore' });
+  CHILDREN.push(chrome);
 
   // 等 DevTools 端点起来
   let version = null;
@@ -140,6 +148,15 @@ async function main() {
   });
   const cdp = new CDP(ws);
 
+  // 页面里抛异常会让 __seek 半路中断 —— 后面的场景整块不动，画面却只是"少了几样东西"。
+  // 所以这里直接抓出来并让整次渲染失败，别把坏帧编进成片。
+  let pageError = null;
+  cdp.on('Runtime.exceptionThrown', (params) => {
+    if (pageError === null) {
+      pageError = params.exceptionDetails?.exception?.description ?? params.exceptionDetails?.text ?? 'unknown';
+    }
+  });
+
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', {
@@ -165,6 +182,10 @@ async function main() {
   for (let i = 0; i < total; i++) {
     const t = i / FPS;
     await cdp.send('Runtime.evaluate', { expression: `window.__seek(${t.toFixed(4)})`, returnByValue: true });
+    if (pageError !== null) {
+      ws.close(); chrome.kill();
+      throw new Error(`第 ${i} 帧（t=${t.toFixed(2)}s）页面抛错，已中止：\n  ${pageError}`);
+    }
     const shot = await cdp.send('Page.captureScreenshot', {
       format: 'jpeg', quality: QUALITY, captureBeyondViewport: false, fromSurface: true,
     });
@@ -207,4 +228,16 @@ async function main() {
 main().catch((error) => {
   console.error('\nFAILED:', error.message);
   process.exitCode = 1;
+});
+
+/* 兜底：任何一条异常路径（包括脚本自己写错、DPAPI 端点没起来）都要把 Chrome 收掉，
+   否则子进程会让 Node 的事件循环永远不退出 —— 表现为"命令卡住不返回"（踩过）。 */
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    for (const child of CHILDREN) child.kill();
+    process.exit(1);
+  });
+}
+process.on('exit', () => {
+  for (const child of CHILDREN) child.kill();
 });
