@@ -1,0 +1,727 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>dsh-gomoku · 宣传片</title>
+<style>
+  /* 逐帧渲染：所有动效都由 JS 按 t 算成内联样式。CSS 里不放任何 transition/animation，
+     也没有 Math.random / Date.now —— 同一个 t 永远给出同一帧，这是能稳定截图的前提。 */
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#000}
+  #stage{
+    position:relative;width:1920px;height:1080px;overflow:hidden;
+    background:#0a0b0f;color:#e9ebf0;
+    font-family:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
+  }
+  .layer{position:absolute;inset:0;pointer-events:none}
+
+  /* ---------- 背景 ---------- */
+  #bgGlow{background:
+    radial-gradient(760px 620px at 62% 40%, rgba(76,141,255,.20), rgba(76,141,255,0) 70%),
+    radial-gradient(900px 700px at 18% 78%, rgba(255,178,72,.10), rgba(255,178,72,0) 72%),
+    #0a0b0f}
+  #bgGrid{
+    background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(1100px 760px at 50% 46%,#000 0%,rgba(0,0,0,.35) 62%,transparent 100%);
+    -webkit-mask-image:radial-gradient(1100px 760px at 50% 46%,#000 0%,rgba(0,0,0,.35) 62%,transparent 100%);
+  }
+  #vignette{background:radial-gradient(1200px 800px at 50% 46%,rgba(0,0,0,0) 52%,rgba(0,0,0,.62) 100%)}
+  .big{font-weight:800;letter-spacing:.01em;line-height:1.05}
+
+  /* ---------- S1 开场 ---------- */
+  #s1{display:grid;place-items:center;text-align:center}
+  #s1 .stack{display:flex;flex-direction:column;align-items:center;gap:24px}
+  #s1 .iconWrap{position:relative;width:200px;height:200px;display:grid;place-items:center}
+  #s1 .iconWrap svg{width:200px;height:200px;position:relative;z-index:2;
+    filter:drop-shadow(0 26px 60px rgba(0,0,0,.65))}
+  #s1 .ring{position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(from 0deg,rgba(76,141,255,0),rgba(76,141,255,.55),rgba(76,141,255,0) 62%);
+    filter:blur(14px)}
+  #s1 h1{font-size:110px}
+  #s1 .kicker{font-size:20px;letter-spacing:.34em;color:#8fa3c4}
+  #s1 .sub{font-size:30px;color:#98a2b6;font-weight:500}
+  #s1 .rule{height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(76,141,255,0),#4c8dff,rgba(76,141,255,0))}
+
+  /* ---------- S2/S3 主界面 ---------- */
+  #app{display:grid;place-items:center}
+  #cam{transform-origin:50% 50%}
+  .win{
+    width:1660px;height:880px;border-radius:16px;overflow:hidden;position:relative;
+    background:#15161b;border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 60px 140px rgba(0,0,0,.72), 0 0 0 1px rgba(255,255,255,.03) inset;
+    display:flex;flex-direction:column;
+  }
+  .titlebar{height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;
+    background:#1b1d23;border-bottom:1px solid rgba(255,255,255,.07)}
+  .titlebar .dot{width:11px;height:11px;border-radius:50%;background:#3a3f4a}
+  .titlebar .name{font-size:14px;color:#aab2c2;font-weight:600;margin-left:6px}
+  .titlebar .spacer{flex:1}
+  .titlebar .wbtn{width:34px;height:44px;display:grid;place-items:center;color:#8a92a3}
+  .wbtn i{display:block;width:11px;height:1.6px;background:currentColor}
+  .body{flex:1;display:flex;min-height:0}
+
+  .rail{width:74px;flex:none;background:#131419;border-right:1px solid rgba(255,255,255,.06);
+    display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0}
+  .rail .ic{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.045);
+    display:grid;place-items:center;color:#7f8798;font-size:15px;font-weight:700}
+  .rail .ic.on{background:rgba(76,141,255,.16);color:#8fb8ff;box-shadow:0 0 0 1px rgba(76,141,255,.35) inset}
+
+  .chat{flex:1;min-width:0;display:flex;flex-direction:column;background:#15161b}
+  .chatHead{height:56px;flex:none;display:flex;align-items:center;gap:10px;padding:0 26px;
+    border-bottom:1px solid rgba(255,255,255,.06);color:#cfd6e4;font-size:15px;font-weight:650}
+  .chatHead .tag{font-size:12px;font-weight:600;color:#8fb8ff;background:rgba(76,141,255,.14);
+    border-radius:999px;padding:3px 10px}
+  .msgs{flex:1;padding:26px 26px 8px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .msg{max-width:76%;font-size:16px;line-height:1.55}
+  .msg.user{align-self:flex-end;background:rgba(76,141,255,.16);border:1px solid rgba(76,141,255,.30);
+    color:#e6eeff;border-radius:14px 14px 4px 14px;padding:12px 16px}
+  .msg.bot{align-self:flex-start;color:#c8cfdd}
+  .msg.bot b{color:#fff;font-weight:650}
+  .composer{margin:0 26px 22px;flex:none;height:56px;border-radius:14px;
+    background:#1c1e25;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;
+    gap:12px;padding:0 16px;color:#79808f;font-size:15px}
+  .composer .caret{width:2px;height:20px;background:#4c8dff;border-radius:2px}
+
+  .side{width:700px;flex:none;background:#12131a;border-left:1px solid rgba(255,255,255,.07);
+    display:flex;flex-direction:column}
+  .sideTabs{height:46px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
+    border-bottom:1px solid rgba(255,255,255,.06)}
+  .sideTab{display:flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:8px;
+    background:rgba(76,141,255,.14);color:#cfe0ff;font-size:13.5px;font-weight:600;
+    box-shadow:0 0 0 1px rgba(76,141,255,.30) inset}
+  .sideTab .x{opacity:.5;font-size:12px}
+  .sideBody{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:10px 0}
+  .boardFrame{position:relative;border-radius:14px;
+    box-shadow:0 26px 60px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.06)}
+  .side .bar{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#9aa3b4}
+  .pill{border-radius:999px;padding:3px 10px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.08);color:#c3cbd9;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .pill.accent{background:rgba(76,141,255,.18);border-color:rgba(76,141,255,.36);color:#a9c8ff}
+  .pill.warm{background:rgba(255,190,90,.16);border-color:rgba(255,190,90,.34);color:#ffd79a}
+
+  /* 引擎应手的延迟徽章：贴在棋盘里（跟着镜头一起被变换，不用手算屏幕坐标）*/
+  #latency{position:absolute;border-radius:12px;padding:8px 14px;font-size:15px;font-weight:700;
+    background:rgba(18,20,26,.94);border:1px solid rgba(76,141,255,.45);color:#bcd6ff;
+    box-shadow:0 14px 34px rgba(0,0,0,.6);white-space:nowrap;transform-origin:0 100%;z-index:5}
+  #latency b{color:#fff}
+
+  /* ---------- 字幕条 ---------- */
+  /* 注意 top:auto：.layer 的 inset:0 会把这条拉成整屏高，里面的胶囊就被垂直居中到
+     画面中间去了（第一版就踩了这个坑）。这里必须显式取消 top。 */
+  #caption{position:absolute;left:0;right:0;top:auto;bottom:34px;display:flex;justify-content:center;align-items:flex-end}
+  #capInner{display:flex;align-items:center;gap:14px;padding:14px 26px;border-radius:999px;
+    background:rgba(12,13,18,.84);border:1px solid rgba(255,255,255,.10);
+    box-shadow:0 20px 50px rgba(0,0,0,.6)}
+  #capDot{width:9px;height:9px;border-radius:50%;background:#4c8dff;box-shadow:0 0 14px #4c8dff}
+  #capText{font-size:23px;font-weight:600;color:#e7ecf6}
+
+  /* ---------- S4 五连 ---------- */
+  /* 注意：不要给这里的标题起 class="win" —— .win 是主窗口那个盒子的类，
+     会让标题变成 1660×880 的不透明大黑盒，把棋盘整个盖住（踩过一次）。 */
+  #s4{display:flex;flex-direction:column;align-items:center;padding-top:56px;gap:14px;text-align:center}
+  #s4win{font-size:118px;color:#fff;text-shadow:0 0 60px rgba(255,206,74,.55)}
+  #s4 .sub{font-size:27px;color:#ffd79a;font-weight:600}
+  #s4 .chips{display:flex;gap:12px;margin-top:2px}
+  #shock{position:absolute;left:50%;top:62%;width:120px;height:120px;margin:-60px 0 0 -60px;
+    border-radius:50%;border:3px solid rgba(255,206,74,.85)}
+
+  /* ---------- S5 模式 ---------- */
+  #s5{display:grid;place-items:center;background:rgba(8,9,13,.74)}
+  #s5 .col{display:flex;flex-direction:column;align-items:center;gap:44px}
+  #s5 .head{font-size:52px;font-weight:800}
+  #s5 .cards{position:relative;display:flex;gap:28px}
+  #s5 .card{width:452px;height:300px;border-radius:20px;padding:30px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#181a21,#131419);border:1px solid rgba(255,255,255,.09);
+    display:flex;flex-direction:column;gap:12px}
+  #s5 .card .k{font-size:13px;letter-spacing:.22em;color:#8fa3c4;font-weight:700}
+  #s5 .card h3{font-size:40px;font-weight:800;color:#fff}
+  #s5 .card p{font-size:19px;line-height:1.6;color:#a7b0c2}
+  #s5 .card .glyph{position:absolute;right:24px;top:20px;font-size:34px;opacity:.5}
+  #s5 .glow{position:absolute;inset:0;border-radius:20px;pointer-events:none}
+
+  /* ---------- S6 收尾 ---------- */
+  #s6{display:grid;place-items:center;text-align:center;background:#0a0b0f}
+  #s6 .col{display:flex;flex-direction:column;align-items:center;gap:22px}
+  #s6 .icon{width:104px;height:104px;filter:drop-shadow(0 18px 40px rgba(0,0,0,.6))}
+  #s6 h2{font-size:74px}
+  #s6 .url{font-size:26px;color:#9fc0ff;font-weight:650}
+  #s6 code{display:block;text-align:left;white-space:pre;font-family:ui-monospace,Consolas,monospace;font-size:19px;
+    color:#c8d3e6;background:#101218;border:1px solid rgba(255,255,255,.09);border-radius:12px;
+    padding:16px 20px;line-height:1.7}
+  #s6 code i{color:#6f7a8d;font-style:normal}
+  #s6 .foot{display:flex;gap:12px;align-items:center;font-size:17px;color:#95a0b4}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="layer" id="bgGlow"></div>
+  <div class="layer" id="bgGrid"></div>
+
+  <!-- S1 开场 -->
+  <section class="layer" id="s1">
+    <div class="stack">
+      <div class="iconWrap"><div class="ring" id="s1ring"></div><span id="s1icon"></span></div>
+      <div class="kicker" id="s1kick">DEEPSEEK HARNESS 插件</div>
+      <h1 class="big" id="s1title">五子棋</h1>
+      <div class="rule" id="s1rule"></div>
+      <div class="sub" id="s1sub">棋盘常驻右侧边栏 · 边聊边下</div>
+    </div>
+  </section>
+
+  <!-- S2/S3 主界面 -->
+  <section class="layer" id="app">
+    <div id="cam">
+      <div class="win">
+        <div class="titlebar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="name">DeepSeek Harness</span>
+          <span class="spacer"></span>
+          <span class="wbtn"><i></i></span>
+          <span class="wbtn"><i style="width:9px;height:9px;background:none;border:1.6px solid currentColor"></i></span>
+          <span class="wbtn"><i></i></span>
+        </div>
+        <div class="body">
+          <div class="rail"><div class="ic on">五</div><div class="ic">◎</div><div class="ic">≡</div><div class="ic">⌘</div></div>
+          <div class="chat">
+            <div class="chatHead">新会话<span class="tag">五子棋</span></div>
+            <div class="msgs" id="msgs"></div>
+            <div class="composer"><span class="caret"></span><span id="composerText">说点什么…</span></div>
+          </div>
+          <div class="side" id="side">
+            <div class="sideTabs"><span class="sideTab"><span>五子棋</span><span class="x">✕</span></span></div>
+            <div class="sideBody">
+              <div class="boardFrame" id="boardFrame"></div>
+              <div class="bar">
+                <span class="pill accent" id="pillMode">对手：引擎</span>
+                <span class="pill" id="pillMoves">第 0 手</span>
+                <span class="pill" id="pillLast">等待落子</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- S4 五连 -->
+  <section class="layer" id="s4">
+    <div id="shock"></div>
+    <div class="big" id="s4win">五连</div>
+    <div class="sub" id="s4sub">第 37 手 · 黑棋连成 (7,8) → (11,8)</div>
+    <div class="chips">
+      <span class="pill accent">引擎执黑</span>
+      <span class="pill">人类执白</span>
+      <span class="pill warm">37 手 · 全程毫秒级</span>
+    </div>
+  </section>
+
+  <!-- S5 模式 -->
+  <section class="layer" id="s5">
+    <div class="col">
+      <div class="head">对手可以换</div>
+      <div class="cards" id="s5cards"></div>
+    </div>
+  </section>
+
+  <!-- S6 收尾 -->
+  <section class="layer" id="s6">
+    <div class="col">
+      <span class="icon" id="s6icon"></span>
+      <h2 class="big">dsh-gomoku</h2>
+      <div class="url">github.com/zutomayo1/dsh-gomoku</div>
+      <code><i># 两个包都要装</i>
+install_bundle  dsh-gomoku-host
+install_bundle  dsh-gomoku-client</code>
+      <div class="foot">
+        <span class="pill accent">MIT</span>
+        <span>棋盘常驻右侧边栏</span><span style="opacity:.4">·</span>
+        <span>引擎毫秒级应手</span><span style="opacity:.4">·</span>
+        <span>314 项自检</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="layer" id="caption"><div id="capInner"><span id="capDot"></span><span id="capText"></span></div></div>
+  <div class="layer" id="vignette"></div>
+</div>
+
+<script>
+/* ============================================================================
+ * dsh-gomoku 宣传片 · 确定性舞台
+ *
+ * 所有动效由 __seek(t)（秒）算成内联样式：没有 CSS transition、没有 rAF、
+ * 没有 Math.random / Date.now。同一个 t 永远同一帧 —— 这是逐帧截图能稳定的前提。
+ *
+ * 棋盘部分**照抄插件 lib/client.js 的真实绘制参数**：STEP/PAD/STONE_R、木纹四段
+ * 渐变、11 条木纹带、棋子六层叠加（落影→本体→环境遮蔽→柔光→亮点→描边）、星位、
+ * 坐标字号。所以片子里看到的盘面就是用户真正看到的盘面。
+ *
+ * 对局数据是**真实的一局**：37 手，人类执白、引擎执黑，最后一手 (7,8) 连成竖线五子。
+ * ========================================================================== */
+const DURATION = 25.4;
+const ENGINE_MS = "4.1";   // 实测中位耗时（见 promo/README.md）
+
+/* ---------- 抄自 dsh-gomoku-client ---------- */
+const STEP = 40, PAD = 38, LINE = 1.15, STONE_R = 17.3;
+const SPAN = PAD * 2 + 14 * STEP;                        // 636
+const coordOf = (i) => PAD + i * STEP;
+const STAR_POINTS = [[3, 3], [3, 11], [11, 3], [11, 11], [7, 7]];
+const GRAIN = [
+  { y: 22, h: 3.4, o: 0.5 }, { y: 74, h: 2.2, o: 0.36 }, { y: 128, h: 4.6, o: 0.62 },
+  { y: 186, h: 2.6, o: 0.4 }, { y: 238, h: 3.0, o: 0.5 }, { y: 296, h: 2.0, o: 0.32 },
+  { y: 352, h: 4.2, o: 0.58 }, { y: 410, h: 2.4, o: 0.38 }, { y: 468, h: 3.2, o: 0.52 },
+  { y: 526, h: 2.2, o: 0.34 }, { y: 580, h: 3.8, o: 0.46 },
+];
+const UID = "p";
+
+/** 主板图标（与两个包的 icon.svg 同一份，内联进来让页面自洽）。 */
+const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Gomoku">
+  <defs>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2d7a8"/>
+      <stop offset="0.55" stop-color="#e5bd82"/>
+      <stop offset="1" stop-color="#d09e5d"/>
+    </linearGradient>
+    <radialGradient id="blackStone" cx="0.36" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#7c7c82"/>
+      <stop offset="0.45" stop-color="#33333a"/>
+      <stop offset="1" stop-color="#0b0b0f"/>
+    </radialGradient>
+    <radialGradient id="whiteStone" cx="0.36" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#f2eee7"/>
+      <stop offset="1" stop-color="#c6c0b6"/>
+    </radialGradient>
+    <clipPath id="frame">
+      <rect x="2.5" y="2.5" width="43" height="43" rx="9"/>
+    </clipPath>
+  </defs>
+
+  <!-- 棋盘 -->
+  <rect x="2.5" y="2.5" width="43" height="43" rx="9" fill="url(#wood)"/>
+  <g clip-path="url(#frame)">
+    <path d="M-4 15 L52 5" stroke="#ffffff" stroke-width="6" fill="none" opacity="0.28"/>
+    <path d="M-4 36 L52 27" stroke="#8a5a2b" stroke-width="3" fill="none" opacity="0.14"/>
+  </g>
+
+  <!-- 棋路：以中心为对称轴的四条线 -->
+  <g stroke="#8a5a2b" stroke-width="1" opacity="0.6" stroke-linecap="round">
+    <path d="M13.2 7.5V40.5"/>
+    <path d="M20.4 7.5V40.5"/>
+    <path d="M27.6 7.5V40.5"/>
+    <path d="M34.8 7.5V40.5"/>
+    <path d="M7.5 13.2H40.5"/>
+    <path d="M7.5 20.4H40.5"/>
+    <path d="M7.5 27.6H40.5"/>
+    <path d="M7.5 34.8H40.5"/>
+  </g>
+
+  <!-- 内框高光 -->
+  <rect x="4.8" y="4.8" width="38.4" height="38.4" rx="7.2" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.4"/>
+
+  <!-- 黑子（左上角星位） -->
+  <ellipse cx="13.6" cy="13.6" rx="5.4" ry="5.2" fill="#3a230c" opacity="0.3"/>
+  <circle cx="13.2" cy="13.2" r="5.6" fill="url(#blackStone)"/>
+  <circle cx="13.2" cy="13.2" r="5.6" fill="none" stroke="#000000" stroke-width="0.7" opacity="0.4"/>
+  <ellipse cx="11.4" cy="11.2" rx="2.3" ry="1.6" fill="#ffffff" opacity="0.5" transform="rotate(-32 11.4 11.2)"/>
+
+  <!-- 白子（右下角星位） -->
+  <ellipse cx="35.2" cy="35.2" rx="5.4" ry="5.2" fill="#3a230c" opacity="0.3"/>
+  <circle cx="34.8" cy="34.8" r="5.6" fill="url(#whiteStone)"/>
+  <circle cx="34.8" cy="34.8" r="5.6" fill="none" stroke="#8d8577" stroke-width="0.7" opacity="0.7"/>
+  <ellipse cx="33" cy="32.8" rx="2.3" ry="1.6" fill="#ffffff" opacity="0.9" transform="rotate(-32 33 32.8)"/>
+
+  <!-- 外描边 -->
+  <rect x="2.5" y="2.5" width="43" height="43" rx="9" fill="none" stroke="#a8743c" stroke-width="1.4"/>
+</svg>`;
+
+/* ---------- 真实对局：[行, 列, 1=黑(引擎) / 2=白(人类)] ---------- */
+const MOVES = [
+  [7, 7, 1], [7, 6, 2], [8, 7, 1], [9, 7, 2], [6, 7, 1], [5, 7, 2], [8, 6, 1], [6, 8, 2],
+  [8, 8, 1], [8, 5, 2], [8, 10, 1], [8, 9, 2], [9, 9, 1], [6, 6, 2], [10, 10, 1], [11, 11, 2],
+  [9, 10, 1], [7, 10, 2], [12, 10, 1], [11, 10, 2], [9, 8, 1], [7, 5, 2], [4, 8, 1], [9, 5, 2],
+  [10, 5, 1], [9, 6, 2], [9, 3, 1], [7, 9, 2], [9, 11, 1], [9, 12, 2], [5, 5, 1], [11, 9, 2],
+  [11, 8, 1], [10, 9, 2], [10, 8, 1], [12, 8, 2], [7, 8, 1],
+];
+const WIN = [[7, 8], [8, 8], [9, 8], [10, 8], [11, 8]];
+const WIN_KEYS = new Set(WIN.map(([r, c]) => r + ":" + c));
+
+/* ---------- 时间轴 ---------- */
+const T = {
+  introIn: 0.18, introIcon: 0.9, introText: 1.05, introSub: 1.5, introRule: 1.75,
+  introOut: 2.45, introEnd: 2.95,
+  appIn: 3.0, appInEnd: 4.0, sideIn: 3.35, sideInEnd: 4.15,
+  chat: [3.7, 4.45, 5.15, 5.85],
+  movesAt: 7.35, moveGap: 0.225, slowFrom: 31, moveGapSlow: 0.34,
+  win: 16.55, winText: 16.95,
+  modeIn: 19.7, outIn: 22.5, outEnd: 25.4,
+};
+/** 第 i 手（0 基）落下的时刻；后 6 手放慢，让五连看得清。 */
+function moveTime(i) {
+  return i < T.slowFrom
+    ? T.movesAt + i * T.moveGap
+    : T.movesAt + T.slowFrom * T.moveGap + (i - T.slowFrom) * T.moveGapSlow;
+}
+const GAME_END = moveTime(MOVES.length - 1);
+
+/* ---------- 工具 ---------- */
+const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+const span = (t, a, b) => clamp01((t - a) / (b - a));
+const easeOut = (x) => 1 - Math.pow(1 - x, 3);
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const easeBack = (x) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2);
+const lerp = (a, b, x) => a + (b - a) * x;
+const setStyle = (el, obj) => { for (const k in obj) el.style[k] = obj[k]; };
+const show = (el2, on) => { el2.style.display = on ? "" : "none"; };
+
+/* 镜头关键帧：[t, scale, x, y, tilt]。
+   窗口 1660×880 居中，棋盘在右侧栏里、其中心相对画面中心约 +480px（横向）／
+   -21px（纵向）。要把棋盘放大后仍压在画面中心，x ≈ -480 * scale，再按构图微调。*/
+const CAM = [
+  [3.0, 1.00, 0, 0, 0],
+  [4.6, 1.02, -10, -4, 0],
+  [7.0, 1.05, -24, 0, 0],
+  [9.4, 1.55, -744, 32, 0],
+  [16.3, 1.55, -744, 32, 0],
+  [17.5, 1.16, -557, 150, -1.2],
+  [19.6, 1.16, -557, 150, -1.2],
+  [20.6, 1.05, -90, 0, 0],
+  [22.5, 1.02, -40, 0, 0],
+];
+function camAt(t) {
+  if (t <= CAM[0][0]) return CAM[0];
+  for (let i = 1; i < CAM.length; i++) {
+    if (t <= CAM[i][0]) {
+      const [t0, s0, x0, y0, r0] = CAM[i - 1];
+      const [t1, s1, x1, y1, r1] = CAM[i];
+      const k = easeInOut(span(t, t0, t1));
+      return [t, lerp(s0, s1, k), lerp(x0, x1, k), lerp(y0, y1, k), lerp(r0, r1, k)];
+    }
+  }
+  return CAM[CAM.length - 1];
+}
+
+/* ---------- 棋盘 SVG（照抄真实绘制参数） ---------- */
+function boardDefs() {
+  return `<defs>
+    <radialGradient id="${UID}-shadow"><stop offset="0%" stop-color="rgba(58,32,4,.34)"/><stop offset="58%" stop-color="rgba(58,32,4,.20)"/><stop offset="100%" stop-color="rgba(58,32,4,0)"/></radialGradient>
+    <radialGradient id="${UID}-black-solid" cx="31%" cy="25%" r="84%"><stop offset="0%" stop-color="#7d848c"/><stop offset="16%" stop-color="#4c5259"/><stop offset="46%" stop-color="#24282e"/><stop offset="78%" stop-color="#0d1013"/><stop offset="100%" stop-color="#04060a"/></radialGradient>
+    <radialGradient id="${UID}-white-solid" cx="31%" cy="25%" r="86%"><stop offset="0%" stop-color="#ffffff"/><stop offset="34%" stop-color="#fdfbf6"/><stop offset="68%" stop-color="#f0e9dc"/><stop offset="90%" stop-color="#ddd2be"/><stop offset="100%" stop-color="#c9bda5"/></radialGradient>
+    <radialGradient id="${UID}-black-occl" cx="72%" cy="78%" r="72%"><stop offset="0%" stop-color="rgba(0,0,0,0)"/><stop offset="62%" stop-color="rgba(0,0,0,0)"/><stop offset="100%" stop-color="rgba(0,0,0,.55)"/></radialGradient>
+    <radialGradient id="${UID}-white-occl" cx="72%" cy="78%" r="72%"><stop offset="0%" stop-color="rgba(120,98,64,0)"/><stop offset="60%" stop-color="rgba(120,98,64,0)"/><stop offset="100%" stop-color="rgba(120,98,64,.30)"/></radialGradient>
+    <radialGradient id="${UID}-gloss-outer"><stop offset="0%" stop-color="rgba(255,255,255,.40)"/><stop offset="55%" stop-color="rgba(255,255,255,.14)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
+    <radialGradient id="${UID}-gloss-inner"><stop offset="0%" stop-color="rgba(255,255,255,.95)"/><stop offset="70%" stop-color="rgba(255,255,255,.45)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></radialGradient>
+    <linearGradient id="${UID}-wood" x1="0%" y1="0%" x2="88%" y2="100%"><stop offset="0%" stop-color="#efcd96"/><stop offset="34%" stop-color="#e6bd83"/><stop offset="68%" stop-color="#dcae70"/><stop offset="100%" stop-color="#cb9a5b"/></linearGradient>
+    <linearGradient id="${UID}-streak" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="rgba(146,96,34,0)"/><stop offset="22%" stop-color="rgba(146,96,34,.55)"/><stop offset="62%" stop-color="rgba(120,76,24,.42)"/><stop offset="100%" stop-color="rgba(146,96,34,0)"/></linearGradient>
+    <linearGradient id="${UID}-sheen" x1="0%" y1="0%" x2="70%" y2="90%"><stop offset="0%" stop-color="rgba(255,255,255,.22)"/><stop offset="45%" stop-color="rgba(255,255,255,.04)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></linearGradient>
+    <radialGradient id="${UID}-vignette" cx="46%" cy="40%" r="78%"><stop offset="0%" stop-color="rgba(96,58,12,0)"/><stop offset="70%" stop-color="rgba(96,58,12,.05)"/><stop offset="100%" stop-color="rgba(76,44,8,.22)"/></radialGradient>
+    <filter id="${UID}-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>`;
+}
+
+/** 一枚棋子：层序与真实实现一致。 */
+function stoneSVG(i, row, col, color) {
+  const cx = coordOf(col), cy = coordOf(row), R = STONE_R;
+  const tone = color === 1 ? "black" : "white";
+  const rim = color === 1 ? "rgba(198,214,232,.20)" : "rgba(96,74,44,.30)";
+  const gx = cx - R * 0.3, gy = cy - R * 0.34, ix = cx - R * 0.36, iy = cy - R * 0.42;
+  return `<g class="st" data-i="${i}" opacity="0">
+    <circle cx="${cx + 1.4}" cy="${cy + 2.2}" r="${R * 1.14}" fill="url(#${UID}-shadow)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#${UID}-${tone}-solid)"/>
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="url(#${UID}-${tone}-occl)"/>
+    <ellipse cx="${gx}" cy="${gy}" rx="${R * 0.5}" ry="${R * 0.38}" fill="url(#${UID}-gloss-outer)" transform="rotate(-28 ${gx} ${gy})"/>
+    <ellipse cx="${ix}" cy="${iy}" rx="${R * 0.19}" ry="${R * 0.14}" fill="url(#${UID}-gloss-inner)" transform="rotate(-28 ${ix} ${iy})"/>
+    <circle cx="${cx}" cy="${cy}" r="${R - 0.35}" fill="none" stroke="${rim}" stroke-width="${color === 1 ? 0.7 : 0.85}"/>
+  </g>`;
+}
+
+function buildBoard() {
+  let coords = "", grid = "", stars = "";
+  for (let i = 0; i < 15; i++) {
+    coords += `<text x="${PAD - 14}" y="${coordOf(i) + 4.4}" text-anchor="end" font-size="13" font-weight="500" fill="rgba(74,46,12,.52)">${i}</text>`;
+    coords += `<text x="${coordOf(i) + 0.5}" y="${PAD - 13}" text-anchor="middle" font-size="13" font-weight="500" fill="rgba(74,46,12,.52)">${i}</text>`;
+    grid += `<line x1="${coordOf(0)}" y1="${coordOf(i)}" x2="${coordOf(14)}" y2="${coordOf(i)}" stroke="rgba(58,34,6,.70)" stroke-width="${LINE}" stroke-linecap="round"/>`;
+    grid += `<line x1="${coordOf(i)}" y1="${coordOf(0)}" x2="${coordOf(i)}" y2="${coordOf(14)}" stroke="rgba(58,34,6,.70)" stroke-width="${LINE}" stroke-linecap="round"/>`;
+  }
+  for (const [r, c] of STAR_POINTS) stars += `<circle cx="${coordOf(c)}" cy="${coordOf(r)}" r="3.7" fill="rgba(40,22,2,.86)"/>`;
+  const grain = GRAIN.map((b) => `<rect x="0" y="${b.y}" width="${SPAN}" height="${b.h}" fill="url(#${UID}-streak)" opacity="${b.o}"/>`).join("");
+  const stones = MOVES.map((m, i) => stoneSVG(i, m[0], m[1], m[2])).join("");
+  const winPts = WIN.map(([r, c]) => `${coordOf(c)},${coordOf(r)}`).join(" ");
+  const w0 = WIN[0], w1 = WIN[WIN.length - 1];
+
+  return `<svg id="boardSvg" viewBox="0 0 ${SPAN} ${SPAN}" width="${SPAN}" height="${SPAN}">
+    ${boardDefs()}
+    <rect width="${SPAN}" height="${SPAN}" fill="url(#${UID}-wood)"/>
+    ${grain}
+    <rect width="${SPAN}" height="${SPAN}" fill="url(#${UID}-sheen)"/>
+    ${coords}${grid}${stars}
+    <g id="stones">${stones}</g>
+    <g id="winLayer" opacity="0">
+      <line id="winGlow" x1="${coordOf(w0[1])}" y1="${coordOf(w0[0])}" x2="${coordOf(w1[1])}" y2="${coordOf(w1[0])}" stroke="rgba(255,206,74,.85)" stroke-width="7.5" stroke-linecap="round" filter="url(#${UID}-glow)"/>
+      <polyline id="winLine" points="${winPts}" fill="none" stroke="rgba(255,236,150,.98)" stroke-width="3.1" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <circle id="lastRing" cx="0" cy="0" r="4.4" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="1.9" opacity="0"/>
+    <rect width="${SPAN}" height="${SPAN}" fill="url(#${UID}-vignette)"/>
+    <rect x="0.6" y="0.6" width="${SPAN - 1.2}" height="${SPAN - 1.2}" rx="13" fill="none" stroke="rgba(120,76,24,.30)"/>
+  </svg><div id="latency"></div>`;
+}
+
+/* ---------- 主界面里的对话 ---------- */
+const CHAT = [
+  { cls: "user", html: "帮我把五子棋摆到右边，我要一边聊一边下" },
+  { cls: "bot", html: "<b>已停靠右侧栏。</b>你执白、引擎执黑 —— 它会在同一次往返里应手。" },
+  { cls: "user", html: "我下 (7,6)" },
+  { cls: "bot", html: "收到 —— <b>引擎已经应了</b>，棋盘上那圈白环标着最后一手。" },
+];
+const MODE_CARDS = [
+  { k: "DEFAULT", h: "引擎", p: "Host 本地棋力内核。毫秒级应手、零会话副作用 —— 下棋完全不占用对话。", g: "⚡" },
+  { k: "OPT IN", h: "模型", p: "把落子交给模型：它自己 gomoku_show 看盘、再 gomoku_move。慢，但你看着它想。", g: "🧠" },
+  { k: "OFF", h: "手动", p: "不自动应手。两个人轮流点，或者挂机摆谱研究。", g: "✋" },
+];
+
+/* ---------- 组装 ---------- */
+const el = (id) => document.getElementById(id);
+const stage = el("stage");
+el("s1icon").innerHTML = ICON_SVG;
+el("s6icon").innerHTML = ICON_SVG;
+el("boardFrame").innerHTML = buildBoard();
+el("msgs").innerHTML = CHAT.map((m, i) => `<div class="msg ${m.cls}" data-chat="${i}" style="opacity:0">${m.html}</div>`).join("");
+el("s5cards").innerHTML = MODE_CARDS.map((c, i) => `
+  <div class="card" data-card="${i}">
+    <div class="glow" data-glow="${i}"></div>
+    <div class="glyph">${c.g}</div>
+    <div class="k">${c.k}</div><h3>${c.h}</h3><p>${c.p}</p>
+  </div>`).join("");
+
+const stoneEls = [...document.querySelectorAll("#stones .st")];
+const cardEls = [...document.querySelectorAll("#s5 .card")];
+const glowEls = [...document.querySelectorAll("#s5 .glow")];
+const chatEls = [...document.querySelectorAll("#msgs .msg")];
+const capInner = el("capInner"), capText = el("capText"), latency = el("latency");
+const latencyHome = { left: 0, top: 0 };
+
+/* ---------- 字幕 ---------- */
+const CAPTIONS = [
+  [3.5, 7.3, "棋盘常驻右侧边栏 —— 一边聊天，一边下棋"],
+  [7.6, 12.4, "你落一子，引擎在同一次 HTTP 往返里应手：毫秒级，零会话副作用"],
+  [12.6, 16.4, "落子、连五、胜负 —— 全在 Host 上判定，浏览器只是视图"],
+  [16.7, 19.4, "第 37 手，(7,8) 连成五子"],
+  [19.9, 22.3, "对手三档可换：引擎 / 模型 / 手动"],
+  [22.7, 25.2, "MIT · 两个包 · github.com/zutomayo1/dsh-gomoku"],
+];
+function captionAt(t) {
+  for (const [a, b, text] of CAPTIONS) if (t >= a && t <= b) return { text, a, b };
+  return null;
+}
+
+/* ---------- 逐帧渲染 ---------- */
+function seek(t) {
+  const drift = t * 12;
+  el("bgGlow").style.transform = `translate3d(${-drift * 0.35}px,${drift * 0.16}px,0) scale(1.12)`;
+  el("bgGrid").style.transform = `translate3d(${-drift * 0.5}px,${drift * 0.22}px,0) scale(1.06)`;
+
+  /* ===== S1 开场 ===== */
+  const introOn = t < T.introEnd;
+  show(el("s1"), introOn);
+  if (introOn) {
+    const iconK = easeBack(span(t, T.introIn, T.introIn + T.introIcon));
+    const ringK = span(t, T.introIn + 0.1, T.introIn + 1.5);
+    const textK = easeOut(span(t, T.introText, T.introText + 0.7));
+    const subK = easeOut(span(t, T.introSub, T.introSub + 0.7));
+    const ruleK = easeOut(span(t, T.introRule, T.introRule + 0.7));
+    const outK = span(t, T.introOut, T.introEnd);
+    setStyle(document.querySelector("#s1 .stack"), {
+      opacity: String(1 - outK),
+      transform: `translateY(${-outK * 40}px) scale(${lerp(1, 1.06, outK)})`,
+    });
+    setStyle(document.querySelector("#s1 .iconWrap"), {
+      transform: `scale(${lerp(0.42, 1, iconK)}) rotate(${lerp(-16, 0, iconK)}deg)`,
+      opacity: String(span(t, T.introIn, T.introIn + 0.4)),
+    });
+    setStyle(el("s1ring"), {
+      transform: `rotate(${ringK * 300}deg) scale(${lerp(0.5, 1.35, ringK)})`,
+      opacity: String(0.75 * Math.sin(Math.PI * clamp01(ringK)) + 0.12),
+    });
+    setStyle(el("s1kick"), { opacity: String(textK), transform: `translateY(${(1 - textK) * 22}px)` });
+    setStyle(el("s1title"), { opacity: String(textK), transform: `translateY(${(1 - textK) * 30}px) scale(${lerp(1.06, 1, textK)})` });
+    setStyle(el("s1sub"), { opacity: String(subK), transform: `translateY(${(1 - subK) * 22}px)` });
+    setStyle(el("s1rule"), { width: `${ruleK * 460}px`, opacity: String(ruleK) });
+  }
+
+  /* ===== S2 / S3 主界面 ===== */
+  const appOn = t >= T.appIn - 0.35 && t < T.outIn;
+  show(el("app"), appOn);
+  if (appOn) {
+    const inK = easeOut(span(t, T.appIn, T.appInEnd));
+    const sideK = easeOut(span(t, T.sideIn, T.sideInEnd));
+    const [ct, cs, cx, cy, cr] = camAt(t);
+    void ct;
+    setStyle(el("cam"), {
+      transform: `translate3d(${cx}px,${cy}px,0) scale(${cs}) rotate(${cr}deg)`,
+      opacity: String(inK * (1 - span(t, T.outIn - 0.5, T.outIn))),
+    });
+    setStyle(el("cam").firstElementChild, { transform: `translateY(${(1 - inK) * 46}px)` });
+    setStyle(el("side"), { transform: `translateX(${(1 - sideK) * 90}px)`, opacity: String(sideK) });
+
+    chatEls.forEach((node, i) => {
+      const at = T.chat[i];
+      const k = easeOut(span(t, at, at + 0.55));
+      setStyle(node, { opacity: String(k), transform: `translateY(${(1 - k) * 16}px)` });
+    });
+    const composerAt = T.chat[T.chat.length - 1] + 0.5;
+    setStyle(el("composerText"), { opacity: String(0.85 * span(t, composerAt, composerAt + 0.4)) });
+    setStyle(document.querySelector(".composer .caret"), {
+      opacity: String(t > composerAt ? (Math.floor(t * 5) % 2 === 0 ? 1 : 0.15) : 0),
+    });
+
+    /* —— 棋子按时间露出 —— */
+    let landed = 0;
+    for (let i = 0; i < MOVES.length; i++) if (t >= moveTime(i)) landed = i + 1;
+    const finished = t >= GAME_END;
+
+    stoneEls.forEach((node, i) => {
+      if (i >= landed) { node.setAttribute("opacity", "0"); node.removeAttribute("transform"); return; }
+      const k = clamp01((t - moveTime(i)) / 0.19);
+      const scale = 1 + 0.34 * Math.pow(1 - easeOut(k), 2);
+      const [row, col] = MOVES[i];
+      const px = coordOf(col), py = coordOf(row);
+      const dim = finished && !WIN_KEYS.has(row + ":" + col) ? 0.42 : 1;
+      node.setAttribute("opacity", String(Math.min(1, k * 1.8) * dim));
+      node.setAttribute("transform", `translate(${px} ${py}) scale(${scale}) translate(${-px} ${-py})`);
+    });
+
+    /* —— 最后一手标记 —— */
+    const lastRing = el("lastRing");
+    if (landed > 0 && !finished) {
+      const [row, col, color] = MOVES[landed - 1];
+      const since = t - moveTime(landed - 1);
+      lastRing.setAttribute("cx", String(coordOf(col)));
+      lastRing.setAttribute("cy", String(coordOf(row)));
+      lastRing.setAttribute("stroke", color === 1 ? "rgba(255,255,255,.92)" : "rgba(28,20,8,.8)");
+      lastRing.setAttribute("r", String(4.4 * (1 + 0.16 * Math.sin(clamp01(since / 0.5) * Math.PI))));
+      lastRing.setAttribute("opacity", String(clamp01(since / 0.14)));
+    } else {
+      lastRing.setAttribute("opacity", "0");
+    }
+
+    /* —— 取胜连线：画出 + 呼吸 —— */
+    const winK = span(t, T.win, T.win + 0.55);
+    if (winK > 0) {
+      el("winLayer").setAttribute("opacity", "1");
+      const len = 4 * STEP;
+      const poly = el("winLine");
+      poly.setAttribute("stroke-dasharray", String(len));
+      poly.setAttribute("stroke-dashoffset", String(len * (1 - easeOut(winK))));
+      el("winGlow").setAttribute("stroke-width", String(7.5 + (winK > 0.6 ? 3.2 * Math.sin(t * 9) : 0)));
+    } else {
+      el("winLayer").setAttribute("opacity", "0");
+    }
+
+    /* —— 状态条 —— */
+    const lastMove = landed > 0 ? MOVES[landed - 1] : null;
+    el("pillMoves").textContent = `第 ${landed} 手`;
+    el("pillLast").textContent = lastMove === null
+      ? "等待落子"
+      : `${lastMove[2] === 1 ? "黑" : "白"} (${lastMove[0]}, ${lastMove[1]}) · ${lastMove[2] === 1 ? "引擎" : "你"}`;
+
+    /* —— 引擎应手徽章：贴着刚落下的黑子，跟着镜头一起动 —— */
+    let badge = null;
+    if (!finished && landed > 0) {
+      for (let i = landed - 1; i >= Math.max(0, landed - 3); i--) {
+        if (MOVES[i][2] !== 1) continue;
+        const since = t - moveTime(i);
+        if (since >= 0 && since < 0.9) { badge = { i, since }; break; }
+      }
+    }
+    if (badge !== null) {
+      const [row, col] = MOVES[badge.i];
+      const pop = easeOut(span(badge.since, 0, 0.16));
+      const fade = 1 - span(badge.since, 0.62, 0.9);
+      latency.innerHTML = `引擎应手 <b>${ENGINE_MS} ms</b> · 第 ${badge.i + 1} 手`;
+      setStyle(latency, {
+        left: `${coordOf(col) + 16}px`,
+        top: `${coordOf(row) - 52}px`,
+        opacity: String(clamp01(clamp01(pop) * clamp01(fade))),
+        transform: `scale(${lerp(0.86, 1, clamp01(pop))})`,
+      });
+      show(latency, true);
+    } else {
+      show(latency, false);
+    }
+    void latencyHome;
+  }
+
+  /* ===== S4 五连 ===== */
+  const s4On = t >= T.win - 0.05 && t < T.modeIn;
+  show(el("s4"), s4On);
+  if (s4On) {
+    const k = easeBack(span(t, T.winText, T.winText + 0.6));
+    const outK = span(t, T.modeIn - 0.45, T.modeIn);
+    setStyle(el("s4win"), {
+      opacity: String(clamp01(k) * (1 - outK)),
+      transform: `scale(${lerp(0.74, 1, clamp01(k))})`,
+    });
+    const restK = easeOut(span(t, T.winText + 0.25, T.winText + 0.9));
+    for (const sel of ["#s4sub", ".chips"]) {
+      setStyle(document.querySelector("#s4 " + sel), {
+        opacity: String(restK * (1 - outK)),
+        transform: `translateY(${(1 - restK) * 18}px)`,
+      });
+    }
+    const shockK = span(t, T.win, T.win + 0.9);
+    setStyle(el("shock"), {
+      opacity: String((1 - shockK) * 0.9),
+      transform: `scale(${lerp(0.2, 9, easeOut(shockK))})`,
+    });
+  }
+
+  /* ===== S5 模式 ===== */
+  const s5On = t >= T.modeIn && t < T.outIn;
+  show(el("s5"), s5On);
+  if (s5On) {
+    const headK = easeOut(span(t, T.modeIn, T.modeIn + 0.5));
+    setStyle(document.querySelector("#s5 .head"), { opacity: String(headK), transform: `translateY(${(1 - headK) * 20}px)` });
+    cardEls.forEach((node, i) => {
+      const at = T.modeIn + 0.25 + i * 0.14;
+      const k = easeOut(span(t, at, at + 0.55));
+      setStyle(node, { opacity: String(k), transform: `translateY(${(1 - k) * 42}px) scale(${lerp(0.96, 1, k)})` });
+      const step = t < T.modeIn + 1.5 ? 0 : t < T.modeIn + 2.1 ? 1 : 2;
+      const on = step === i;
+      setStyle(glowEls[i], {
+        boxShadow: on ? "0 0 0 2px rgba(76,141,255,.85) inset, 0 24px 60px rgba(76,141,255,.28)" : "none",
+        background: on ? "linear-gradient(180deg,rgba(76,141,255,.14),rgba(76,141,255,0) 62%)" : "none",
+      });
+    });
+  }
+
+  /* ===== S6 收尾 ===== */
+  const s6On = t >= T.outIn;
+  show(el("s6"), s6On);
+  if (s6On) {
+    const k = easeOut(span(t, T.outIn + 0.1, T.outIn + 0.9));
+    const fade = 1 - span(t, T.outEnd - 0.9, T.outEnd);
+    setStyle(document.querySelector("#s6 .col"), {
+      opacity: String(clamp01(k) * clamp01(fade)),
+      transform: `translateY(${(1 - k) * 30}px) scale(${lerp(0.97, 1, k)})`,
+    });
+  }
+
+  /* ===== 字幕 ===== */
+  const cap = captionAt(t);
+  show(el("caption"), cap !== null);
+  if (cap !== null) {
+    const k = clamp01(easeOut(span(t, cap.a, cap.a + 0.42)) * (1 - span(t, cap.b - 0.35, cap.b)));
+    setStyle(capInner, { opacity: String(k), transform: `translateY(${(1 - k) * 18}px)` });
+    capText.textContent = cap.text;
+  }
+  return true;
+}
+
+window.__seek = seek;
+window.__duration = DURATION;
+seek(0);
+</script>
+</body>
+</html>

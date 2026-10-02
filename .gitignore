@@ -12,3 +12,7 @@ Thumbs.db
 # 临时/调试
 _tmp/
 *.tmp
+
+# 宣传片的中间帧：约 760 张 JPEG / 200 MB，跑 promo/build.ps1 随时能重建。
+# 成片（promo/out/）要进版本库——那才是能分享的东西。
+promo/frames/
