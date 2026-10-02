@@ -4,19 +4,19 @@
 <meta charset="utf-8">
 <title>dsh-gomoku · 宣传片</title>
 <style>
-  /* 逐帧渲染：全部动效由 JS 按 t 算成内联样式（没有 CSS transition/rAF/Math.random/
-     Date.now）。同一个 t 永远同一帧 —— 这是能稳定逐帧截图的前提。 */
+  /* 逐帧渲染：全部动效由 JS 按 t 算成内联样式 / canvas 绘制。没有 CSS transition、
+     没有 rAF、没有 Math.random、没有 Date.now —— 同一个 t 永远同一帧。
+     整条时间轴卡在 120 BPM 的网格上（BEAT = 0.5s），棋子落在 16 分音符上。 */
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{background:#000}
   #stage{
     position:relative;width:1920px;height:1080px;overflow:hidden;
-    background:#05060a;color:#e9ebf0;
+    background:#04050a;color:#e9ebf0;
     font-family:system-ui,"Segoe UI","Microsoft YaHei",sans-serif;
   }
-  /* 世界层：只承受屏幕震动。
-     注意**不要**在这里加 perspective / transform-style:preserve-3d —— 一旦成为 3D
-     渲染上下文，子元素的 z-index 就失效了，3D 旋转过的窗口会盖住上层大字
-     （「五连」标题因此整块消失过）。透视放到各自需要的地方：#app 与 #s5 .col。 */
+  /* 世界层只承受震动。
+     不要在这里加 perspective / transform-style:preserve-3d —— 一旦成为 3D 渲染
+     上下文，子元素 z-index 就失效，旋转过的窗口会盖住上层大字（踩过）。 */
   #world{position:absolute;inset:0}
   .layer{position:absolute;inset:0;pointer-events:none}
   canvas{display:block}
@@ -25,36 +25,38 @@
 
   /* ---------- 背景 ---------- */
   #bgGlow{background:
-    radial-gradient(820px 660px at 62% 38%, rgba(76,141,255,.24), rgba(76,141,255,0) 70%),
-    radial-gradient(980px 760px at 16% 80%, rgba(255,150,40,.13), rgba(255,150,40,0) 72%),
-    radial-gradient(1200px 900px at 50% 50%, rgba(20,26,40,.9), #05060a 78%)}
+    radial-gradient(860px 700px at 62% 36%, rgba(76,141,255,.26), rgba(76,141,255,0) 70%),
+    radial-gradient(1000px 780px at 14% 82%, rgba(255,120,180,.16), rgba(255,120,180,0) 72%),
+    radial-gradient(1200px 900px at 50% 46%, rgba(18,24,38,.92), #04050a 78%)}
   #bgGrid{
-    background-image:linear-gradient(rgba(140,190,255,.07) 1px,transparent 1px),
-                     linear-gradient(90deg,rgba(140,190,255,.07) 1px,transparent 1px);
-    background-size:72px 72px;
-    mask-image:radial-gradient(1200px 820px at 50% 48%,#000 0%,rgba(0,0,0,.3) 60%,transparent 100%);
-    -webkit-mask-image:radial-gradient(1200px 820px at 50% 48%,#000 0%,rgba(0,0,0,.3) 60%,transparent 100%);
+    background-image:linear-gradient(rgba(140,190,255,.08) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(140,190,255,.08) 1px,transparent 1px);
+    background-size:76px 76px;
+    mask-image:radial-gradient(1200px 800px at 50% 42%,#000 0%,rgba(0,0,0,.25) 58%,transparent 100%);
+    -webkit-mask-image:radial-gradient(1200px 800px at 50% 42%,#000 0%,rgba(0,0,0,.25) 58%,transparent 100%);
+    filter:blur(.4px);
   }
 
   /* ---------- 开场：棋盘英雄镜头 ---------- */
   #s1{display:grid;place-items:center;text-align:center;z-index:3;background:
-    radial-gradient(760px 460px at 50% 48%, rgba(5,6,10,.80), rgba(5,6,10,.35) 58%, rgba(5,6,10,0) 78%)}
-  #heroBoard{position:absolute;left:50%;top:57%;width:880px;height:880px;margin:-440px 0 0 -440px;
+    radial-gradient(780px 470px at 50% 47%, rgba(4,5,10,.82), rgba(4,5,10,.32) 58%, rgba(4,5,10,0) 78%)}
+  #heroBoard{position:absolute;left:50%;top:57%;width:900px;height:900px;margin:-450px 0 0 -450px;
     border-radius:18px;overflow:hidden;
-    box-shadow:0 60px 160px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.07),
-               0 0 120px rgba(255,180,80,.18)}
-  #heroBoard svg{display:block;width:880px;height:880px}
+    box-shadow:0 60px 170px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.08),
+               0 0 150px rgba(255,170,70,.22), 0 0 90px rgba(110,190,255,.18)}
+  #heroBoard svg{display:block;width:900px;height:900px}
   #sweep{position:absolute;inset:-10%;background:linear-gradient(102deg,
-    rgba(255,255,255,0) 38%, rgba(255,255,255,.30) 48%, rgba(120,200,255,.22) 54%, rgba(255,255,255,0) 64%);
+    rgba(255,255,255,0) 36%, rgba(255,255,255,.34) 47%, rgba(120,200,255,.26) 54%, rgba(255,255,255,0) 65%);
     mix-blend-mode:screen;opacity:0}
-  #s1 .stack{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:22px}
-  #s1 h1{font-size:190px;letter-spacing:-.01em}
-  #s1 .kicker{font-size:21px;letter-spacing:.42em;color:#9fb4d8}
-  #s1 .sub{font-size:32px;color:#cfd9ea;font-weight:600}
-  #s1 .rule{height:3px;border-radius:3px;background:linear-gradient(90deg,rgba(76,141,255,0),#8ec5ff,rgba(76,141,255,0))}
-  #s1 .stack{filter:drop-shadow(0 8px 40px rgba(0,0,0,.9))}
+  #s1 .stack{position:relative;z-index:4;display:flex;flex-direction:column;align-items:center;gap:20px;
+    filter:drop-shadow(0 10px 44px rgba(0,0,0,.95))}
+  #s1 h1{font-size:184px;letter-spacing:-.01em}
+  #s1 .kicker{font-size:21px;letter-spacing:.42em;color:#a8bcdd}
+  #s1 .sub{font-size:32px;color:#d5dfef;font-weight:600}
+  #s1 .rule{height:3px;border-radius:3px;background:linear-gradient(90deg,rgba(76,141,255,0),#9cc8ff,rgba(76,141,255,0));
+    box-shadow:0 0 22px rgba(120,190,255,.9)}
 
-  /* 色差（chromatic aberration）：同一个字画三份，红/青两路 blend 上去 */
+  /* 色差 */
   .chroma{position:relative;display:inline-block}
   .chroma::before,.chroma::after{content:attr(data-text);position:absolute;left:0;top:0;
     mix-blend-mode:screen;opacity:var(--ca,0);pointer-events:none}
@@ -66,132 +68,153 @@
   #cam{transform-origin:50% 50%;transform-style:preserve-3d}
   .win{
     width:1660px;height:880px;border-radius:16px;overflow:hidden;position:relative;
-    background:#0f1116;border:1px solid rgba(255,255,255,.12);
-    box-shadow:0 70px 160px rgba(0,0,0,.8), 0 0 0 1px rgba(255,255,255,.03) inset,
-               0 0 90px rgba(76,141,255,.14);
+    background:#0e1016;border:1px solid rgba(255,255,255,.13);
+    box-shadow:0 70px 170px rgba(0,0,0,.85), 0 0 0 1px rgba(255,255,255,.03) inset,
+               0 0 110px rgba(76,141,255,.18);
     display:flex;flex-direction:column;
   }
   .titlebar{height:42px;flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;
-    background:#171a21;border-bottom:1px solid rgba(255,255,255,.07)}
+    background:#161a22;border-bottom:1px solid rgba(255,255,255,.07)}
   .titlebar .dot{width:11px;height:11px;border-radius:50%;background:#3a3f4a}
   .titlebar .name{font-size:14px;color:#aab2c2;font-weight:600;margin-left:6px}
   .titlebar .spacer{flex:1}
   .titlebar .wbtn{width:34px;height:42px;display:grid;place-items:center;color:#8a92a3}
   .wbtn i{display:block;width:11px;height:1.6px;background:currentColor}
   .body{flex:1;display:flex;min-height:0}
-
-  .rail{width:74px;flex:none;background:#0d0f14;border-right:1px solid rgba(255,255,255,.06);
+  .rail{width:74px;flex:none;background:#0c0e13;border-right:1px solid rgba(255,255,255,.06);
     display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px 0}
   .rail .ic{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.045);
     display:grid;place-items:center;color:#7f8798;font-size:15px;font-weight:700}
-  .rail .ic.on{background:rgba(76,141,255,.18);color:#9cc4ff;box-shadow:0 0 0 1px rgba(76,141,255,.4) inset}
-
-  .chat{flex:1;min-width:0;display:flex;flex-direction:column;background:#0f1116}
+  .rail .ic.on{background:rgba(76,141,255,.20);color:#a3c8ff;box-shadow:0 0 0 1px rgba(76,141,255,.45) inset}
+  .chat{flex:1;min-width:0;display:flex;flex-direction:column;background:#0e1016}
   .chatHead{height:54px;flex:none;display:flex;align-items:center;gap:10px;padding:0 26px;
     border-bottom:1px solid rgba(255,255,255,.06);color:#cfd6e4;font-size:15px;font-weight:650}
-  .chatHead .tag{font-size:12px;font-weight:600;color:#9cc4ff;background:rgba(76,141,255,.16);
+  .chatHead .tag{font-size:12px;font-weight:600;color:#9cc4ff;background:rgba(76,141,255,.18);
     border-radius:999px;padding:3px 10px}
-  .msgs{flex:1;padding:26px 26px 8px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .msgs{flex:1;padding:24px 26px 8px;display:flex;flex-direction:column;gap:15px;overflow:hidden}
   .msg{max-width:76%;font-size:16px;line-height:1.55}
-  .msg.user{align-self:flex-end;background:rgba(76,141,255,.20);border:1px solid rgba(76,141,255,.40);
-    color:#eaf2ff;border-radius:14px 14px 4px 14px;padding:12px 16px;
-    box-shadow:0 10px 30px rgba(30,80,200,.25)}
+  .msg.user{align-self:flex-end;background:rgba(76,141,255,.22);border:1px solid rgba(76,141,255,.45);
+    color:#eef4ff;border-radius:14px 14px 4px 14px;padding:12px 16px;
+    box-shadow:0 12px 34px rgba(30,80,200,.3)}
   .msg.bot{align-self:flex-start;color:#c8cfdd}
   .msg.bot b{color:#fff;font-weight:650}
-  .composer{margin:0 26px 20px;flex:none;height:54px;border-radius:14px;
-    background:#171a21;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;
+  .composer{margin:0 26px 18px;flex:none;height:54px;border-radius:14px;
+    background:#161a22;border:1px solid rgba(255,255,255,.09);display:flex;align-items:center;
     gap:12px;padding:0 16px;color:#79808f;font-size:15px}
   .composer .caret{width:2px;height:20px;background:#4c8dff;border-radius:2px}
-
-  .side{width:700px;flex:none;background:#0c0e13;border-left:1px solid rgba(255,255,255,.07);
+  .side{width:700px;flex:none;background:#0b0d12;border-left:1px solid rgba(255,255,255,.07);
     display:flex;flex-direction:column}
   .sideTabs{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
     border-bottom:1px solid rgba(255,255,255,.06)}
   .sideTab{display:flex;align-items:center;gap:8px;height:29px;padding:0 12px;border-radius:8px;
-    background:rgba(76,141,255,.18);color:#d6e6ff;font-size:13.5px;font-weight:600;
-    box-shadow:0 0 0 1px rgba(76,141,255,.4) inset}
+    background:rgba(76,141,255,.20);color:#dbe9ff;font-size:13.5px;font-weight:600;
+    box-shadow:0 0 0 1px rgba(76,141,255,.45) inset}
   .sideTab .x{opacity:.5;font-size:12px}
   .sideBody{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:10px 0}
   .boardFrame{position:relative;border-radius:14px}
   #boardFx{position:absolute;left:0;top:0;width:636px;height:636px;pointer-events:none}
   .side .bar{display:flex;align-items:center;gap:8px;font-size:13.5px;color:#9aa3b4}
   .pill{border-radius:999px;padding:3px 10px;background:rgba(255,255,255,.07);
-    border:1px solid rgba(255,255,255,.10);color:#c3cbd9;font-size:12.5px;font-weight:600;white-space:nowrap}
-  .pill.accent{background:rgba(76,141,255,.20);border-color:rgba(76,141,255,.42);color:#b3d0ff}
-  .pill.warm{background:rgba(255,190,90,.18);border-color:rgba(255,190,90,.40);color:#ffdca6}
-
+    border:1px solid rgba(255,255,255,.11);color:#c3cbd9;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .pill.accent{background:rgba(76,141,255,.22);border-color:rgba(76,141,255,.46);color:#bcd6ff}
+  .pill.warm{background:rgba(255,190,90,.20);border-color:rgba(255,190,90,.44);color:#ffdfae}
   #latency{position:absolute;border-radius:12px;padding:8px 14px;font-size:15px;font-weight:800;
-    background:rgba(10,14,22,.94);border:1px solid rgba(120,190,255,.55);color:#d6e9ff;
-    box-shadow:0 0 26px rgba(76,141,255,.45), 0 14px 34px rgba(0,0,0,.6);
+    background:rgba(9,13,20,.95);border:1px solid rgba(120,190,255,.6);color:#dcecff;
+    box-shadow:0 0 30px rgba(76,141,255,.55), 0 14px 34px rgba(0,0,0,.65);
     white-space:nowrap;transform-origin:0 100%;z-index:5}
   #latency b{color:#fff}
 
-  /* ---------- 动能大字（飞入的镜头标题）---------- */
-  /* 大字常常落在浅色木纹上，所以既要有投影，也要给自己垫一层暗底 */
-  .kinetic{position:absolute;left:0;right:0;top:176px;text-align:center;z-index:6;
-    background:radial-gradient(720px 280px at 50% 48%, rgba(4,6,11,.80), rgba(4,6,11,0) 76%)}
-  .kinetic .t{display:inline-block;font-size:96px;font-weight:900;letter-spacing:.02em;color:#fff;
-    text-shadow:0 0 50px rgba(120,190,255,.55), 0 4px 18px rgba(0,0,0,.95), 0 16px 44px rgba(0,0,0,.85)}
-  .kinetic .s{margin-top:10px;font-size:24px;color:#e6edf9;font-weight:700;letter-spacing:.06em;
+  /* ---------- 动能大字 ---------- */
+  .kinetic{position:absolute;left:0;right:0;top:172px;text-align:center;z-index:6;
+    background:radial-gradient(760px 290px at 50% 48%, rgba(4,5,10,.84), rgba(4,5,10,0) 76%)}
+  .kinetic .t{display:inline-block;font-size:98px;font-weight:900;letter-spacing:.02em;color:#fff;
+    text-shadow:0 0 56px rgba(120,190,255,.6), 0 4px 18px rgba(0,0,0,.95), 0 16px 46px rgba(0,0,0,.9)}
+  .kinetic .s{margin-top:10px;font-size:24px;color:#e8eefa;font-weight:700;letter-spacing:.06em;
     text-shadow:0 2px 14px rgba(0,0,0,.95), 0 0 26px rgba(0,0,0,.85)}
-  .kinetic .u{display:block;height:4px;border-radius:4px;margin:16px auto 0;
-    background:linear-gradient(90deg,rgba(76,141,255,0),#8ec5ff,rgba(76,141,255,0));
-    box-shadow:0 0 18px rgba(120,190,255,.8)}
+  .kinetic .u{display:block;height:4px;border-radius:4px;margin:15px auto 0;
+    background:linear-gradient(90deg,rgba(76,141,255,0),#9cc8ff,rgba(76,141,255,0));
+    box-shadow:0 0 20px rgba(120,190,255,.9)}
 
   /* ---------- 字幕 ---------- */
-  #caption{position:absolute;left:0;right:0;top:auto;bottom:84px;display:flex;justify-content:center;z-index:8}
+  #caption{position:absolute;left:0;right:0;top:auto;bottom:82px;display:flex;justify-content:center;z-index:8}
   #capInner{display:flex;align-items:center;gap:14px;padding:13px 26px;border-radius:999px;
-    background:rgba(8,10,16,.86);border:1px solid rgba(140,190,255,.22);
-    box-shadow:0 20px 50px rgba(0,0,0,.65), 0 0 30px rgba(76,141,255,.18)}
-  #capDot{width:9px;height:9px;border-radius:50%;background:#6fb0ff;box-shadow:0 0 16px #6fb0ff}
-  #capText{font-size:23px;font-weight:600;color:#eaf1fb}
+    background:rgba(7,9,15,.88);border:1px solid rgba(140,190,255,.26);
+    box-shadow:0 20px 54px rgba(0,0,0,.7), 0 0 34px rgba(76,141,255,.22)}
+  #capDot{width:9px;height:9px;border-radius:50%;background:#7ab8ff;box-shadow:0 0 18px #7ab8ff}
+  #capText{font-size:23px;font-weight:600;color:#eef3fc}
 
-  /* ---------- S4 五连 ---------- */
-  /* 别给这里的标题起 class="win" —— .win 是主窗口那个盒子的类（踩过） */
-  #s4{display:flex;flex-direction:column;align-items:center;padding-top:64px;gap:8px;text-align:center;z-index:7}
-  #s4win{font-size:142px;color:#fff;
-    text-shadow:0 0 80px rgba(255,206,74,.85), 0 4px 20px rgba(0,0,0,.95), 0 0 26px rgba(255,255,255,.6)}
-  #s4 .sub{font-size:28px;color:#ffd79a;font-weight:700;letter-spacing:.02em}
+  /* ---------- 五连 ---------- */
+  #s4{display:flex;flex-direction:column;align-items:center;padding-top:62px;gap:8px;text-align:center;z-index:7}
+  #s4win{font-size:146px;color:#fff;
+    text-shadow:0 0 90px rgba(255,206,74,.9), 0 4px 20px rgba(0,0,0,.95), 0 0 30px rgba(255,255,255,.7)}
+  #s4 .sub{font-size:27px;color:#ffdca6;font-weight:700}
   #s4 .chips{display:flex;gap:12px;margin-top:2px}
   #shock{position:absolute;left:50%;top:63%;width:140px;height:140px;margin:-70px 0 0 -70px;
-    border-radius:50%;border:4px solid rgba(255,214,120,.9)}
+    border-radius:50%;border:4px solid rgba(255,214,120,.92)}
+  #shock2{position:absolute;left:50%;top:63%;width:140px;height:140px;margin:-70px 0 0 -70px;
+    border-radius:50%;border:2px solid rgba(140,210,255,.85)}
 
-  /* ---------- S5 模式 ---------- */
-  #s5{display:grid;place-items:center;background:rgba(4,6,11,.80);z-index:7}
-  #s5 .col{display:flex;flex-direction:column;align-items:center;gap:42px;perspective:1400px}
-  #s5 .head{font-size:62px;font-weight:900;letter-spacing:.01em}
-  #s5 .cards{position:relative;display:flex;gap:28px}
-  #s5 .card{width:452px;height:300px;border-radius:20px;padding:30px;position:relative;overflow:hidden;
-    background:linear-gradient(180deg,#191c24,#0e1015);border:1px solid rgba(255,255,255,.10);
-    display:flex;flex-direction:column;gap:12px}
+  /* ---------- 智能体工具 ---------- */
+  #s7{display:grid;place-items:center;background:rgba(4,5,10,.86);z-index:8}
+  #s7 .col{display:flex;flex-direction:column;align-items:center;gap:26px}
+  #s7 .head{font-size:56px;font-weight:900;text-shadow:0 0 40px rgba(120,190,255,.5)}
+  #term{width:1180px;border-radius:16px;overflow:hidden;background:#070910;
+    border:1px solid rgba(140,190,255,.30);box-shadow:0 40px 100px rgba(0,0,0,.8), 0 0 70px rgba(76,141,255,.22)}
+  #termBar{height:40px;display:flex;align-items:center;gap:9px;padding:0 14px;background:#0d1119;
+    border-bottom:1px solid rgba(255,255,255,.07)}
+  #termBar .d{width:10px;height:10px;border-radius:50%;background:#39404d}
+  #termBar .t{font-size:13px;color:#8e99ab;font-weight:600;margin-left:6px}
+  #termBody{padding:20px 24px;font-family:ui-monospace,Consolas,monospace;font-size:18px;line-height:1.62;
+    color:#cdd8e8;min-height:392px;white-space:pre}
+  #termBody .cmd{color:#8ad3ff;font-weight:700}
+  #termBody .dim{color:#7d8798}
+  #termBody .ok{color:#9ff0c0}
+  #cursor{display:inline-block;width:9px;height:19px;background:#8ad3ff;vertical-align:-3px}
+  #toolChips{display:flex;gap:10px}
+
+  /* ---------- 模式 ---------- */
+  #s5{display:grid;place-items:center;background:rgba(4,5,10,.84);z-index:7}
+  #s5 .col{display:flex;flex-direction:column;align-items:center;gap:38px;perspective:1400px}
+  #s5 .head{font-size:64px;font-weight:900;text-shadow:0 0 40px rgba(120,190,255,.45)}
+  #s5 .cards{position:relative;display:flex;gap:26px}
+  #s5 .card{width:456px;height:330px;border-radius:20px;padding:30px;position:relative;overflow:hidden;
+    background:linear-gradient(180deg,#191d26,#0e1015);border:1px solid rgba(255,255,255,.10);
+    display:flex;flex-direction:column;gap:10px}
   #s5 .card .k{font-size:13px;letter-spacing:.22em;color:#8fa3c4;font-weight:700}
-  #s5 .card h3{font-size:42px;font-weight:900;color:#fff}
-  #s5 .card p{font-size:19px;line-height:1.6;color:#a7b0c2}
-  #s5 .card .glyph{position:absolute;right:24px;top:20px;font-size:34px;opacity:.55}
+  #s5 .card h3{font-size:44px;font-weight:900;color:#fff}
+  #s5 .card p{font-size:18.5px;line-height:1.58;color:#a7b0c2}
+  #s5 .card .stat{margin-top:auto;font-size:15px;font-weight:700;color:#9cc8ff;
+    font-family:ui-monospace,Consolas,monospace}
+  #s5 .card .glyph{position:absolute;right:24px;top:18px;font-size:34px;opacity:.55}
   #s5 .glow{position:absolute;inset:0;border-radius:20px;pointer-events:none}
 
-  /* ---------- S6 收尾 ---------- */
-  #s6{display:grid;place-items:center;text-align:center;background:#05060a;z-index:9}
-  #s6 .col{display:flex;flex-direction:column;align-items:center;gap:22px}
-  #s6 .icon{width:118px;height:118px;filter:drop-shadow(0 18px 50px rgba(255,190,90,.35))}
-  #s6 h2{font-size:86px;text-shadow:0 0 60px rgba(120,190,255,.35)}
-  #s6 .url{font-size:27px;color:#a9c9ff;font-weight:700;letter-spacing:.01em}
+  /* ---------- 收尾 ---------- */
+  #s6{display:grid;place-items:center;text-align:center;background:#04050a;z-index:9}
+  #s6 .col{display:flex;flex-direction:column;align-items:center;gap:18px}
+  #s6 .icon{width:124px;height:124px;filter:drop-shadow(0 18px 54px rgba(255,190,90,.4))}
+  #s6 h2{font-size:88px;text-shadow:0 0 70px rgba(120,190,255,.4)}
+  #s6 .url{font-size:27px;color:#aecbff;font-weight:700}
   #s6 code{display:block;text-align:left;white-space:pre;font-family:ui-monospace,Consolas,monospace;
-    font-size:19px;color:#d3dcec;background:#0c0e14;border:1px solid rgba(140,190,255,.20);
-    border-radius:12px;padding:16px 20px;line-height:1.7;
-    box-shadow:0 0 40px rgba(76,141,255,.12)}
+    font-size:19px;color:#d6dfee;background:#0b0e14;border:1px solid rgba(140,190,255,.22);
+    border-radius:12px;padding:15px 20px;line-height:1.66;box-shadow:0 0 44px rgba(76,141,255,.14)}
   #s6 code i{color:#7c8798;font-style:normal}
-  #s6 .foot{display:flex;gap:12px;align-items:center;font-size:17px;color:#95a0b4}
+  #s6 .stats{display:flex;gap:10px}
+  #marquee{position:absolute;left:0;right:0;top:auto;bottom:126px;z-index:9;overflow:hidden;
+    mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);
+    -webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+  .mq{display:flex;gap:12px;white-space:nowrap;margin-bottom:10px}
+  .mq .pill{font-size:15px;padding:6px 14px}
 
-  /* ---------- 后期叠加 ---------- */
+  /* ---------- 后期 ---------- */
   #scan{position:absolute;inset:0;z-index:50;pointer-events:none;
-    background:repeating-linear-gradient(to bottom,rgba(255,255,255,.045) 0 1px,transparent 1px 3px);
-    opacity:.45;mix-blend-mode:overlay}
-  #bars .bar{position:absolute;left:0;right:0;height:56px;background:#000;z-index:60}
+    background:repeating-linear-gradient(to bottom,rgba(255,255,255,.05) 0 1px,transparent 1px 3px);
+    opacity:.4;mix-blend-mode:overlay}
+  #bars .bar{position:absolute;left:0;right:0;height:54px;background:#000;z-index:60}
   #bars .top{top:0}#bars .bot{bottom:0}
   #vig{position:absolute;inset:0;z-index:55;pointer-events:none;
-    background:radial-gradient(1250px 820px at 50% 46%,rgba(0,0,0,0) 46%,rgba(0,0,0,.72) 100%)}
+    background:radial-gradient(1260px 830px at 50% 46%,rgba(0,0,0,0) 42%,rgba(0,0,0,.78) 100%)}
   #flash{position:absolute;inset:0;z-index:70;background:#fff;opacity:0;pointer-events:none}
+  #beat{position:absolute;inset:0;z-index:71;pointer-events:none;background:radial-gradient(900px 600px at 50% 50%,rgba(120,190,255,.5),rgba(120,190,255,0) 70%);opacity:0}
 </style>
 </head>
 <body>
@@ -201,7 +224,7 @@
     <div class="layer" id="bgGrid"></div>
     <canvas id="fxBack" width="1920" height="1080"></canvas>
 
-    <!-- 开场：棋盘英雄镜头 -->
+    <!-- 开场 -->
     <section class="layer" id="s1">
       <div id="heroBoard"><div id="heroSweep"><div id="sweep"></div></div></div>
       <div class="stack">
@@ -246,7 +269,7 @@
       </div>
     </section>
 
-    <!-- 动能大字（跨场景复用，按时间改内容）-->
+    <!-- 动能大字 -->
     <div class="kinetic" id="kinetic">
       <div class="t" id="kinTitle"></div>
       <div class="s" id="kinSub"></div>
@@ -255,12 +278,28 @@
 
     <!-- 五连 -->
     <section class="layer" id="s4">
-      <div id="shock"></div>
+      <div id="shock"></div><div id="shock2"></div>
       <div class="big" id="s4win"><span class="chroma" data-text="五连">五连</span></div>
       <div class="sub" id="s4sub">第 37 手 · 黑棋连成 (7,8) → (11,8)</div>
       <div class="chips">
         <span class="pill accent">引擎执黑</span><span class="pill">人类执白</span>
         <span class="pill warm">37 手 · 全程毫秒级</span>
+      </div>
+    </section>
+
+    <!-- 智能体工具 -->
+    <section class="layer" id="s7">
+      <div class="col">
+        <div class="head">模型也能下</div>
+        <div id="term">
+          <div id="termBar"><span class="d"></span><span class="d"></span><span class="d"></span>
+            <span class="t">agent · 工具调用</span></div>
+          <div id="termBody"></div>
+        </div>
+        <div id="toolChips">
+          <span class="pill accent">gomoku_show</span><span class="pill accent">gomoku_move</span>
+          <span class="pill">gomoku_new</span><span class="pill">gomoku_archive</span>
+        </div>
       </div>
     </section>
 
@@ -276,12 +315,13 @@
         <h2 class="big">dsh-gomoku</h2>
         <div class="url">github.com/zutomayo1/dsh-gomoku</div>
         <code id="s6code"></code>
-        <div class="foot">
-          <span class="pill accent">MIT</span><span>棋盘常驻右侧边栏</span><span style="opacity:.4">·</span>
-          <span>引擎毫秒级应手</span><span style="opacity:.4">·</span><span>314 项自检</span>
+        <div class="stats">
+          <span class="pill accent">MIT</span><span class="pill">15×15 freestyle</span>
+          <span class="pill">零依赖产物</span><span class="pill">278 项自检</span>
         </div>
       </div>
     </section>
+    <div class="layer" id="marquee"></div>
 
     <div class="layer" id="caption"><div id="capInner"><span id="capDot"></span><span id="capText"></span></div></div>
   </div>
@@ -289,26 +329,32 @@
   <div class="layer" id="vig"></div>
   <div class="layer" id="scan"></div>
   <div class="layer" id="bars"><div class="bar top"></div><div class="bar bot"></div></div>
+  <div class="layer" id="beat"></div>
   <div class="layer" id="flash"></div>
 </div>
 
 <script>
 /* ============================================================================
- * dsh-gomoku 宣传片 · 确定性舞台
+ * dsh-gomoku 宣传片 · 确定性舞台（29.0s / 120 BPM）
  *
- * 全部动效由 __seek(t)（秒）算成内联样式 / canvas 绘制：没有 CSS transition、
- * 没有 requestAnimationFrame、没有 Math.random、没有 Date.now。同一个 t 永远
- * 给出同一帧 —— 这是逐帧截图能稳定的前提。
+ * 全部动效由 __seek(t) 算成内联样式或 canvas 绘制：没有 CSS transition、没有 rAF、
+ * 没有 Math.random、没有 Date.now。同一个 t 永远同一帧。
  *
- * 棋盘照抄 dsh-gomoku-client 的真实绘制参数（STEP/PAD/STONE_R、木纹四段渐变、
- * 11 条木纹带、棋子六层叠加、星位、坐标字号）；对局是真实的一局 37 手。
+ * 时间轴卡在 120 BPM（BEAT = 0.5s / 16 分 = 0.125s）上：
+ *   0.50  白光命中（第 1 拍）      1.00  标题砸入        3.00  主界面飞入
+ *   7.50  对局开始（第 15 拍）     14.00 命中停顿（音乐抽空）
+ *   14.50 五连 drop（第 29 拍）    18.00 工具场景        21.50 模式
+ *   24.50 收尾                     29.00 结束
+ * 37 手：前 24 手 16 分音符（0.125s），中 10 手 8 分（0.25s），末 3 手 4 分（0.5s）。
+ *
+ * 棋盘照抄 dsh-gomoku-client 的真实绘制参数；对局是真实的一局 37 手。
  * ========================================================================== */
-const DURATION = 26.2;
+const DURATION = 29.0;
+const BPM = 120, BEAT = 60 / BPM, STEP16 = BEAT / 4;
 const ENGINE_MS = "4.1";   // 实测中位耗时，复测命令见 promo/README.md
 
-/* ---------- 抄自 dsh-gomoku-client ---------- */
 const STEP = 40, PAD = 38, LINE = 1.15, STONE_R = 17.3;
-const SPAN = PAD * 2 + 14 * STEP;                        // 636
+const SPAN = PAD * 2 + 14 * STEP;
 const coordOf = (i) => PAD + i * STEP;
 const STAR_POINTS = [[3, 3], [3, 11], [11, 3], [11, 11], [7, 7]];
 const GRAIN = [
@@ -377,7 +423,6 @@ const ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" wi
   <rect x="2.5" y="2.5" width="43" height="43" rx="9" fill="none" stroke="#a8743c" stroke-width="1.4"/>
 </svg>`;
 
-/* ---------- 真实对局：[行, 列, 1=黑(引擎) / 2=白(人类)] ---------- */
 const MOVES = [
   [7, 7, 1], [7, 6, 2], [8, 7, 1], [9, 7, 2], [6, 7, 1], [5, 7, 2], [8, 6, 1], [6, 8, 2],
   [8, 8, 1], [8, 5, 2], [8, 10, 1], [8, 9, 2], [9, 9, 1], [6, 6, 2], [10, 10, 1], [11, 11, 2],
@@ -388,31 +433,31 @@ const MOVES = [
 const WIN = [[7, 8], [8, 8], [9, 8], [10, 8], [11, 8]];
 const WIN_KEYS = new Set(WIN.map(([r, c]) => r + ":" + c));
 
-/* ---------- 时间轴 ---------- */
-const T = {
-  // 开场
-  sparkStart: 0.15, impact: 0.62, heroIn: 0.66, titleIn: 0.95, subIn: 1.5, ruleIn: 1.8,
-  heroOut: 2.5, introEnd: 3.0,
-  // 主界面
-  appIn: 3.05, appInEnd: 3.75, sideIn: 3.5, sideInEnd: 4.05,
-  chat: [4.15, 4.75, 5.3, 5.8], kinetic1: 4.9, kinetic1Out: 7.3,
-  // 对局
-  movesAt: 7.5, moveGapFast: 0.135, moveSlowFrom: 26, moveGapSlow: 0.33,
-  kinetic2: 8.3, kinetic2Out: 10.6,
-  // 五连
-  hitStop: 16.62, win: 16.95, winText: 17.3, winHold: 20.0,
-  // 模式
-  modeIn: 20.1, kinetic3: 20.3, kinetic3Out: 23.6,
-  // 收尾
-  outIn: 23.3, outEnd: 26.2,
-};
-/** 第 i 手落下的时刻：前 26 手像连珠炮，后 11 手慢下来（速度渐变）。 */
-function moveTime(i) {
-  return i < T.moveSlowFrom
-    ? T.movesAt + i * T.moveGapFast
-    : T.movesAt + T.moveSlowFrom * T.moveGapFast + (i - T.moveSlowFrom) * T.moveGapSlow;
+/** 落子时刻：三段速度渐变，全部落在 16 分音符网格上。 */
+const MOVE_T = [];
+{
+  let t = 7.5;
+  for (let i = 0; i < MOVES.length; i++) {
+    MOVE_T.push(t);
+    if (i < 23) t += STEP16;          // 前 24 手：16 分音符（连珠炮）
+    else if (i < 33) t += BEAT / 2;   // 中 10 手：8 分
+    else t += BEAT;                   // 末 3 手：4 分（放慢看五连）
+  }
 }
-const GAME_END = moveTime(MOVES.length - 1);
+const GAME_END = MOVE_T[MOVE_T.length - 1];
+
+const T = {
+  spark: 0.06, impact: 0.5, heroIn: 0.54, titleIn: 1.0, subIn: 1.5, ruleIn: 2.0,
+  heroOut: 2.5, introEnd: 3.0,
+  appIn: 3.0, appInEnd: 3.6, sideIn: 3.4, sideInEnd: 3.9,
+  chat: [4.0, 4.5, 5.0, 5.5], kinetic1: 4.0, kinetic1Out: 6.6,
+  kinetic2: 8.0, kinetic2Out: 10.5,
+  freeze: 14.0, win: 14.5, winText: 14.75, winHold: 18.0,
+  toolsIn: 18.0, toolsEnd: 21.5, termStart: 18.35, termDur: 2.5,
+  modeIn: 21.5, modeEnd: 24.5,
+  outIn: 24.5, outEnd: 29.0,
+};
+const CUTS = [T.appIn, T.toolsIn, T.modeIn, T.outIn];
 
 /* ---------- 工具 ---------- */
 const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -421,25 +466,44 @@ const easeOut = (x) => 1 - Math.pow(1 - x, 3);
 const easeOutQuint = (x) => 1 - Math.pow(1 - x, 5);
 const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 const lerp = (a, b, x) => a + (b - a) * x;
-/** 固定伪随机：不用 Math.random，保证逐帧可复现。 */
 const hash = (n) => { const s = Math.sin(n * 127.1 + 11.7) * 43758.5453; return s - Math.floor(s); };
 const setStyle = (el, obj) => { for (const k in obj) el.style[k] = obj[k]; };
 const show = (el, on) => { el.style.display = on ? "" : "none"; };
 const $ = (sel) => document.querySelector(sel);
 const el = (id) => document.getElementById(id);
 
+/* ---------- 节拍：每一拍给一个冲击包络 ---------- */
+/** 最近的底鼓（每拍一次）离现在多久 -> 0..1 的冲击强度。 */
+function punch(t) {
+  const ph = ((t % BEAT) + BEAT) % BEAT;
+  if (t < 1.0 || (t >= T.freeze && t < T.win)) return 0;
+  return Math.exp(-ph / 0.075);
+}
+/** 切场冲击：切点后 0.28s 内的强脉冲。 */
+function cutPunch(t) {
+  let m = 0;
+  for (const c of CUTS) {
+    const dt = t - c;
+    if (dt >= 0 && dt < 0.3) m = Math.max(m, Math.exp(-dt / 0.09));
+  }
+  return m;
+}
+
 /* 镜头关键帧：[t, scale, x, y, rotZ, rotX, rotY] */
 const CAM = [
-  [3.05, 1.00, 0, 0, 0, 0, 0],
-  [3.75, 1.03, -6, -6, 0, 9, -7],     // 从下前方带角度飞来
-  [5.20, 1.01, -12, -2, 0, -2, 3],    // 轻微回摆
-  [7.30, 1.05, -26, 0, 0, 0, 0],
-  [9.60, 1.58, -758, 30, 0, 4, -5],   // 推入棋盘（带一点 3D 倾斜）
-  [15.60, 1.62, -777, 28, 0, 5, -6],
-  [16.95, 1.18, -566, 134, -0.6, 2, -3],
-  [19.90, 1.18, -566, 134, -0.6, 2, -3],
-  [21.10, 1.08, -100, 0, 0, 0, 0],
-  [23.30, 1.04, -46, 0, 0, 0, 0],
+  [3.0, 1.00, 0, 0, 0, 0, 0],
+  [3.6, 1.04, -8, -8, 0, 11, -9],
+  [5.0, 1.01, -14, -2, 0, -2, 4],
+  [6.6, 1.03, -20, 0, 0, 0, 0],
+  [7.5, 1.06, -30, 0, 0, 0, 0],
+  [9.4, 1.60, -768, 30, 0, 5, -6],
+  [13.6, 1.72, -826, 24, 0, 6, -7],
+  [14.0, 1.92, -922, 18, 0, 7, -8],   // 命中停顿：推到最紧
+  [14.5, 1.18, -566, 134, -0.5, 3, -4],// drop：拉回来，把顶部让给大字
+  [17.9, 1.18, -566, 134, -0.5, 3, -4],
+  [19.4, 1.06, -60, 0, 0, 0, 0],
+  [21.4, 1.02, -30, 0, 0, 0, 0],
+  [24.5, 1.06, -40, 0, 0, 0, 0],
 ];
 function camAt(t) {
   if (t <= CAM[0][0]) return CAM[0];
@@ -453,7 +517,7 @@ function camAt(t) {
   return CAM[CAM.length - 1];
 }
 
-/* ---------- 棋盘 SVG（照抄真实绘制参数）---------- */
+/* ---------- 棋盘（照抄真实绘制参数）---------- */
 function boardDefs(uid) {
   return `<defs>
     <radialGradient id="${uid}-shadow"><stop offset="0%" stop-color="rgba(58,32,4,.34)"/><stop offset="58%" stop-color="rgba(58,32,4,.20)"/><stop offset="100%" stop-color="rgba(58,32,4,0)"/></radialGradient>
@@ -505,358 +569,414 @@ function boardMarkup(uid, withStones) {
     ${coords}${grid}${stars}
     <g id="${uid}-stones">${stones}</g>
     <g id="${uid}-winLayer" opacity="0">
-      <line id="${uid}-winGlow" x1="${coordOf(w0[1])}" y1="${coordOf(w0[0])}" x2="${coordOf(w1[1])}" y2="${coordOf(w1[0])}" stroke="rgba(255,206,74,.85)" stroke-width="8" stroke-linecap="round" filter="url(#${uid}-glow)"/>
-      <polyline id="${uid}-winLine" points="${winPts}" fill="none" stroke="rgba(255,240,170,.98)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <line id="${uid}-winGlow" x1="${coordOf(w0[1])}" y1="${coordOf(w0[0])}" x2="${coordOf(w1[1])}" y2="${coordOf(w1[0])}" stroke="rgba(255,206,74,.9)" stroke-width="9" stroke-linecap="round" filter="url(#${uid}-glow)"/>
+      <polyline id="${uid}-winLine" points="${winPts}" fill="none" stroke="rgba(255,244,190,.99)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
     </g>
-    <circle id="${uid}-lastRing" cx="0" cy="0" r="4.4" fill="none" stroke="rgba(255,255,255,.92)" stroke-width="2" opacity="0"/>
+    <circle id="${uid}-lastRing" cx="0" cy="0" r="4.4" fill="none" stroke="rgba(255,255,255,.95)" stroke-width="2" opacity="0"/>
     <rect width="${SPAN}" height="${SPAN}" fill="url(#${uid}-vignette)"/>
     <rect x="0.6" y="0.6" width="${SPAN - 1.2}" height="${SPAN - 1.2}" rx="13" fill="none" stroke="rgba(120,76,24,.30)"/>
   </svg>`;
 }
 
-/* ---------- 组装 ---------- */
+/* ---------- 内容 ---------- */
 const CHAT = [
   { cls: "user", html: "帮我把五子棋摆到右边，我要一边聊一边下" },
   { cls: "bot", html: "<b>已停靠右侧栏。</b>你执白、引擎执黑 —— 它会在同一次往返里应手。" },
   { cls: "user", html: "我下 (7,6)" },
-  { cls: "bot", html: "<b>引擎已经应了</b>，那圈白环标着最后一手。" },
+  { cls: "bot", html: "<b>引擎已经应了</b>（第 2 手就是它），那圈白环标着最后一手。" },
 ];
 const MODE_CARDS = [
-  { k: "DEFAULT", h: "引擎", p: "Host 本地棋力内核。毫秒级应手、零会话副作用 —— 下棋完全不占用对话。", g: "⚡" },
-  { k: "OPT IN", h: "模型", p: "把落子交给模型：它自己 gomoku_show 看盘、再 gomoku_move。慢，但你看着它想。", g: "🧠" },
-  { k: "OFF", h: "手动", p: "不自动应手。两个人轮流点，或者挂机摆谱研究。", g: "✋" },
+  { k: "DEFAULT", h: "引擎", p: "Host 本地棋力内核。零会话副作用 —— 下棋完全不占用对话。", g: "⚡", s: "中位 4.1 ms / 手" },
+  { k: "OPT IN", h: "模型", p: "把落子交给模型：它自己 gomoku_show 看盘、再 gomoku_move。", g: "🧠", s: "gomoku_show → move" },
+  { k: "OFF", h: "手动", p: "不自动应手。两个人轮流点，或者挂机摆谱研究。", g: "✋", s: "双方都用手" },
 ];
 const INSTALL = "# 两个包都要装\ninstall_bundle  dsh-gomoku-host\ninstall_bundle  dsh-gomoku-client";
+const MARQUEE_A = ["棋盘常驻右侧边栏", "边聊边下", "引擎毫秒级应手", "模型可代打", "Host 权威判定", "坐标标注可报点"];
+const MARQUEE_B = ["键盘也能下", "存档成棋谱", "零依赖产物", "不断线热重载友好", "278 项自检", "MIT"];
+/* 终端内容：盘面取自真实对局第 25 手之后（行 4-9 / 列 4-10 的裁切），
+   下一手就是真实谱里的白 (9,6)。 */
+const TERM = [
+  { c: "cmd", s: "▸ gomoku_show" },
+  { c: "", s: "棋盘（15×15，B=黑，W=白，·=空）：" },
+  { c: "dim", s: "       4  5  6  7  8  9 10" },
+  { c: "dim", s: "   5   ·  ·  ·  W  ·  ·  ·" },
+  { c: "dim", s: "   6   ·  ·  W  B  W  ·  ·" },
+  { c: "dim", s: "   7   ·  W  W  B  ·  ·  W" },
+  { c: "dim", s: "   8   ·  W  B  B  B  W  B" },
+  { c: "dim", s: "   9   ·  W  ·  W  B  B  B" },
+  { c: "", s: "黑 13 子，白 12 子。轮到 white 落子。" },
+  { c: "cmd", s: "▸ gomoku_move(row=9, col=6)" },
+  { c: "ok", s: "白方落子 (9, 6)。轮到 黑。" },
+];
 
-el("s1icon")?.remove?.();
+/* ---------- 组装 ---------- */
 el("heroBoard").insertAdjacentHTML("afterbegin", boardMarkup("h", false));
 el("boardFrame").innerHTML = boardMarkup("p", true)
   + `<canvas id="boardFx" width="${SPAN}" height="${SPAN}"></canvas>`
   + `<div id="latency"></div>`;
 el("s6icon").innerHTML = ICON_SVG;
+el("s6code").innerHTML = INSTALL.split("\n").map((line, i) => (i === 0 ? `<i>${line}</i>` : line)).join("\n");
 el("msgs").innerHTML = CHAT.map((m, i) => `<div class="msg ${m.cls}" data-chat="${i}" style="opacity:0">${m.html}</div>`).join("");
 el("s5cards").innerHTML = MODE_CARDS.map((c, i) => `
   <div class="card" data-card="${i}"><div class="glow" data-glow="${i}"></div>
-    <div class="glyph">${c.g}</div><div class="k">${c.k}</div><h3>${c.h}</h3><p>${c.p}</p></div>`).join("");
-el("s6code").innerHTML = INSTALL.split("\n").map((line, i) => (i === 0 ? `<i>${line}</i>` : line)).join("\n");
+    <div class="glyph">${c.g}</div><div class="k">${c.k}</div><h3>${c.h}</h3><p>${c.p}</p>
+    <div class="stat">${c.s}</div></div>`).join("");
+const mq = (items) => `<div class="mq">${items.concat(items).map((x) => `<span class="pill">${x}</span>`).join("")}</div>`;
+el("marquee").innerHTML = mq(MARQUEE_A) + mq(MARQUEE_B);
 
 const stoneEls = [...document.querySelectorAll("#p-stones .st")];
 const cardEls = [...document.querySelectorAll("#s5 .card")];
 const glowEls = [...document.querySelectorAll("#s5 .glow")];
 const chatEls = [...document.querySelectorAll("#msgs .msg")];
 const capInner = el("capInner"), capText = el("capText"), latency = el("latency");
-const hero = el("heroBoard"), title = el("s1title"), chroma = title.querySelector(".chroma");
-const s4chroma = el("s4win").querySelector(".chroma");
-const kinetic = el("kinetic");
+const hero = el("heroBoard"), title = el("s1title");
+const chroma = title.querySelector(".chroma"), s4chroma = el("s4win").querySelector(".chroma");
+const kinetic = el("kinetic"), termBody = el("termBody");
+const mqRows = [...document.querySelectorAll("#marquee .mq")];
 const ctxBack = el("fxBack").getContext("2d");
 const ctxBoard = el("boardFx").getContext("2d");
+const TERM_TOTAL = TERM.reduce((n, l) => n + l.s.length, 0);
 
-/* ---------- 动能大字 ---------- */
 const KINETICS = [
   { a: T.kinetic1, b: T.kinetic1Out, title: "边聊边下", sub: "棋盘常驻右侧边栏，对话照常进行" },
   { a: T.kinetic2, b: T.kinetic2Out, title: "同一次往返", sub: `人落一子，引擎应手 —— 实测 ${ENGINE_MS} ms` },
-  // 模式场景有自己的 #s5 .head，不要再挂一条动能大字，否则两块标题会重叠在一帧里
 ];
-
-/* ---------- 字幕 ---------- */
 const CAPTIONS = [
-  [3.3, 7.4, "棋盘常驻右侧边栏 —— 一边聊天，一边下棋"],
-  [7.7, 12.2, "37 手真实对局：人类执白，引擎执黑"],
-  [12.5, 16.5, "落子、连五、胜负全在 Host 上判定，浏览器只是视图"],
-  [17.1, 19.9, "第 37 手，(7,8) 连成五子"],
-  [20.4, 23.3, "引擎 / 模型 / 手动，三档可换"],
-  [23.7, 25.9, "MIT · 两个包 · github.com/zutomayo1/dsh-gomoku"],
+  [3.2, 7.2, "棋盘常驻右侧边栏 —— 一边聊天，一边下棋"],
+  [7.4, 12.0, "37 手真实对局：前 24 手像连珠炮，随后逐步放慢"],
+  [12.2, 14.0, "落子、连五、胜负 —— 全在 Host 上判定，浏览器只是视图"],
+  [14.6, 17.9, "第 37 手，(7,8) 连成五子"],
+  [18.2, 21.3, "模型模式：它用 gomoku_show 看盘、gomoku_move 落子"],
+  [21.7, 24.3, "引擎 / 模型 / 手动，三档可换"],
+  [24.8, 28.6, "MIT · 两个包 · github.com/zutomayo1/dsh-gomoku"],
 ];
-function captionAt(t) {
-  for (const [a, b, text] of CAPTIONS) if (t >= a && t <= b) return { text, a, b };
-  return null;
-}
-function kineticAt(t) {
-  for (const k of KINETICS) if (t >= k.a && t <= k.b) return k;
-  return null;
-}
+const captionAt = (t) => CAPTIONS.find(([a, b]) => t >= a && t <= b) ?? null;
+const kineticAt = (t) => KINETICS.find((k) => t >= k.a && t <= k.b) ?? null;
 
-/* ---------- 屏幕震动：每次落子抖一下，越大的拍子抖得越狠 ---------- */
-const BEATS = [T.impact, T.appIn, T.win, T.winText, T.modeIn, T.outIn];
+/* ---------- 震动 / 闪光 ---------- */
 function shakeAt(t) {
   let amp = 0;
   for (let i = 0; i < MOVES.length; i++) {
-    const dt = t - moveTime(i);
-    if (dt > 0 && dt < 0.2) amp = Math.max(amp, 4.2 * (1 - dt / 0.2));
+    const dt = t - MOVE_T[i];
+    if (dt > 0 && dt < 0.18) amp = Math.max(amp, 5.5 * (1 - dt / 0.18));
   }
-  for (const b of BEATS) {
-    const dt = t - b;
-    if (dt > 0 && dt < 0.34) amp = Math.max(amp, 11 * (1 - dt / 0.34));
-  }
+  amp = Math.max(amp, punch(t) * 3.0, cutPunch(t) * 12, (t >= T.win && t < T.win + 0.4) ? 16 * (1 - (t - T.win) / 0.4) : 0);
   if (amp <= 0) return [0, 0, 0];
-  return [Math.sin(t * 141.3) * amp, Math.cos(t * 167.7) * amp, Math.sin(t * 93.1) * amp * 0.3];
+  return [Math.sin(t * 151.7) * amp, Math.cos(t * 173.3) * amp, Math.sin(t * 97.7) * amp * 0.35];
 }
-
-/* ---------- 闪光：节拍上的白闪 ---------- */
 function flashAt(t) {
-  let f = 0;
-  const bursts = [[T.impact, 0.55, 0.30], [T.appIn, 0.22, 0.18], [T.win, 0.55, 0.26],
-    [T.winText, 0.75, 0.30], [T.modeIn, 0.20, 0.16], [T.outIn, 0.30, 0.22]];
+  let f = punch(t) * 0.05 + cutPunch(t) * 0.28;
+  const bursts = [[T.impact, 0.60, 0.30], [T.win, 0.72, 0.30], [T.winText, 0.55, 0.26], [T.outIn, 0.34, 0.24]];
   for (const [at, peak, dur] of bursts) {
     const dt = t - at;
-    if (dt > 0 && dt < dur) f = Math.max(f, peak * (1 - dt / dur) * (1 - dt / dur));
+    if (dt > 0 && dt < dur) f = Math.max(f, peak * Math.pow(1 - dt / dur, 2));
   }
-  return f;
+  return Math.min(f, 0.95);
 }
 
-/* ---------- 背景粒子（屏幕空间）---------- */
+/* ---------- 背景 canvas：霓虹地格 + 浮尘 + 神光 + 冲击波 + 速度线 ---------- */
 function drawBack(t) {
   const w = 1920, h = 1080;
   ctxBack.clearRect(0, 0, w, h);
+  const horizon = 690;
 
-  // 常驻浮尘
-  for (let i = 0; i < 90; i++) {
-    const sp = 0.012 + hash(i * 5.3) * 0.045;
-    const y = (((hash(i * 7.7) - t * sp) % 1) + 1) % 1;
-    const x = (((hash(i * 3.1) + Math.sin(t * 0.35 + i) * 0.008) % 1) + 1) % 1;
-    const a = 0.06 + 0.16 * hash(i * 2.2);
-    ctxBack.fillStyle = `rgba(150,196,255,${a})`;
+  // 霓虹地格（synthwave）：竖线向消失点汇聚，横线朝观众滚过来
+  ctxBack.save();
+  ctxBack.beginPath(); ctxBack.rect(0, horizon, w, h - horizon); ctxBack.clip();
+  const fade = Math.min(1, Math.max(0, (t - 0.4) / 0.8)) * (0.55 + 0.45 * punch(t));
+  ctxBack.lineCap = "round";
+  for (let i = -16; i <= 16; i++) {
+    ctxBack.strokeStyle = `rgba(96,190,255,${0.22 * fade})`;
+    ctxBack.lineWidth = 1.6;
     ctxBack.beginPath();
-    ctxBack.arc(x * w, y * h, 1 + hash(i * 11.1) * 2.6, 0, 6.2832);
-    ctxBack.fill();
+    ctxBack.moveTo(960 + i * 58, horizon);
+    ctxBack.lineTo(960 + i * 430, h + 60);
+    ctxBack.stroke();
+  }
+  const phase = (t * 0.55) % 1;
+  for (let k = 0; k < 16; k++) {
+    const z = clamp01((k + phase) / 16);
+    const y = horizon + Math.pow(z, 2.3) * (h - horizon + 40);
+    const a = (0.30 * z + 0.06) * fade;
+    ctxBack.strokeStyle = `rgba(190,120,255,${a})`;
+    ctxBack.lineWidth = 1 + z * 2.2;
+    ctxBack.beginPath(); ctxBack.moveTo(0, y); ctxBack.lineTo(w, y); ctxBack.stroke();
+  }
+  ctxBack.restore();
+  ctxBack.strokeStyle = `rgba(140,210,255,${0.5 * fade})`;
+  ctxBack.lineWidth = 2;
+  ctxBack.beginPath(); ctxBack.moveTo(0, horizon); ctxBack.lineTo(w, horizon); ctxBack.stroke();
+
+  // 浮尘
+  for (let i = 0; i < 80; i++) {
+    const sp = 0.012 + hash(i * 5.3) * 0.05;
+    const y = (((hash(i * 7.7) - t * sp) % 1) + 1) % 1;
+    const x = (((hash(i * 3.1) + Math.sin(t * 0.4 + i) * 0.01) % 1) + 1) % 1;
+    ctxBack.fillStyle = `rgba(160,200,255,${0.07 + 0.18 * hash(i * 2.2)})`;
+    ctxBack.beginPath(); ctxBack.arc(x * w, y * h, 1 + hash(i * 11.1) * 2.8, 0, 6.2832); ctxBack.fill();
   }
 
-  // 开场：一道白光从左飞入，命中画面中心
-  const hit = T.impact;
-  if (t >= T.sparkStart && t < hit + 0.05) {
-    const k = span(t, T.sparkStart, hit);
-    const x = lerp(-260, w / 2, easeOutQuint(k)), y = lerp(h * 0.18, h / 2, easeOutQuint(k));
-    for (let i = 0; i < 26; i++) {
-      const back = i * 0.024;
-      const kk = clamp01(k - back / 0.5);
-      if (kk <= 0) continue;
-      const px = lerp(-260, w / 2, easeOutQuint(kk)), py = lerp(h * 0.18, h / 2, easeOutQuint(kk));
-      ctxBack.fillStyle = `rgba(190,224,255,${(1 - i / 26) * 0.5})`;
-      ctxBack.beginPath(); ctxBack.arc(px, py, 9 - i * 0.28, 0, 6.2832); ctxBack.fill();
+  // 开场神光
+  if (t < 3.2) {
+    const g = span(t, 0.5, 1.4) * (1 - span(t, 2.4, 3.2)) * 0.5;
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * 6.2832 + t * 0.35;
+      const len = 900 + 260 * hash(i * 3.7);
+      ctxBack.strokeStyle = `rgba(150,210,255,${g * (0.25 + 0.5 * hash(i * 5.1))})`;
+      ctxBack.lineWidth = 2 + 8 * hash(i * 9.3);
+      ctxBack.beginPath();
+      ctxBack.moveTo(w / 2, h * 0.5);
+      ctxBack.lineTo(w / 2 + Math.cos(a) * len, h * 0.5 + Math.sin(a) * len * 0.62);
+      ctxBack.stroke();
     }
-    ctxBack.fillStyle = "rgba(255,255,255,.95)";
-    ctxBack.beginPath(); ctxBack.arc(x, y, 11, 0, 6.2832); ctxBack.fill();
   }
-  // 命中冲击波
-  const wk = span(t, hit, hit + 1.15);
+
+  // 开场白光飞入
+  if (t >= T.spark && t < T.impact + 0.06) {
+    const k = span(t, T.spark, T.impact);
+    for (let i = 0; i < 30; i++) {
+      const kk = clamp01(k - i * 0.02);
+      if (kk <= 0) continue;
+      const px = lerp(-300, w / 2, easeOutQuint(kk)), py = lerp(h * 0.16, h / 2, easeOutQuint(kk));
+      ctxBack.fillStyle = `rgba(200,232,255,${(1 - i / 30) * 0.55})`;
+      ctxBack.beginPath(); ctxBack.arc(px, py, 10 - i * 0.26, 0, 6.2832); ctxBack.fill();
+    }
+    ctxBack.fillStyle = "rgba(255,255,255,.98)";
+    ctxBack.beginPath(); ctxBack.arc(w / 2, h / 2, 12, 0, 6.2832); ctxBack.fill();
+  }
+  const wk = span(t, T.impact, T.impact + 1.05);
   if (wk > 0 && wk < 1) {
-    const r = easeOut(wk) * 1500;
     ctxBack.strokeStyle = `rgba(190,224,255,${(1 - wk) * 0.5})`;
-    ctxBack.lineWidth = 26 * (1 - wk) + 1;
-    ctxBack.beginPath(); ctxBack.arc(w / 2, h / 2, r, 0, 6.2832); ctxBack.stroke();
+    ctxBack.lineWidth = 28 * (1 - wk) + 1;
+    ctxBack.beginPath(); ctxBack.arc(w / 2, h / 2, easeOut(wk) * 1500, 0, 6.2832); ctxBack.stroke();
   }
-  // 五连爆发：全屏放射
-  const bw = span(t, T.win, T.win + 1.1);
+
+  // 五连：全屏放射 + 速度线
+  const bw = span(t, T.win, T.win + 1.2);
   if (bw > 0 && bw < 1) {
-    ctxBack.strokeStyle = `rgba(255,214,120,${(1 - bw) * 0.42})`;
-    ctxBack.lineWidth = 34 * (1 - bw) + 1;
-    ctxBack.beginPath(); ctxBack.arc(w / 2, h * 0.55, easeOut(bw) * 1300, 0, 6.2832); ctxBack.stroke();
+    ctxBack.strokeStyle = `rgba(255,214,120,${(1 - bw) * 0.45})`;
+    ctxBack.lineWidth = 36 * (1 - bw) + 1;
+    ctxBack.beginPath(); ctxBack.arc(w / 2, h * 0.55, easeOut(bw) * 1400, 0, 6.2832); ctxBack.stroke();
+    const sl = 1 - bw;
+    for (let i = 0; i < 44; i++) {
+      const a = (i / 44) * 6.2832 + hash(i) * 0.1;
+      const r0 = 240 + 300 * hash(i * 7.1);
+      const r1 = r0 + (260 + 500 * hash(i * 3.3)) * sl;
+      ctxBack.strokeStyle = `rgba(255,236,170,${0.5 * sl * (0.4 + 0.6 * hash(i * 5.5))})`;
+      ctxBack.lineWidth = 1.5 + 4 * hash(i * 9.9);
+      ctxBack.beginPath();
+      ctxBack.moveTo(w / 2 + Math.cos(a) * r0, h * 0.55 + Math.sin(a) * r0);
+      ctxBack.lineTo(w / 2 + Math.cos(a) * r1, h * 0.55 + Math.sin(a) * r1);
+      ctxBack.stroke();
+    }
   }
 }
 
-/* ---------- 棋盘内特效（棋盘坐标系，自动跟着镜头变换）---------- */
+/* ---------- 棋盘内特效 ---------- */
 function drawBoard(t) {
   ctxBoard.clearRect(0, 0, SPAN, SPAN);
   const winDone = t >= T.win;
-
   for (let i = 0; i < MOVES.length; i++) {
-    const dt = t - moveTime(i);
-    if (dt < 0 || dt > 0.6) continue;
+    const dt = t - MOVE_T[i];
+    if (dt < 0 || dt > 0.62) continue;
     const [row, col] = MOVES[i];
     const cx = coordOf(col), cy = coordOf(row);
     const rk = clamp01(dt / 0.5);
-    // 冲击环
     ctxBoard.beginPath();
-    ctxBoard.arc(cx, cy, 9 + easeOut(rk) * 52, 0, 6.2832);
-    ctxBoard.strokeStyle = `rgba(255,240,180,${(1 - rk) * 0.6})`;
-    ctxBoard.lineWidth = 3.4 * (1 - rk) + 0.5;
+    ctxBoard.arc(cx, cy, 9 + easeOut(rk) * 56, 0, 6.2832);
+    ctxBoard.strokeStyle = `rgba(255,242,190,${(1 - rk) * 0.65})`;
+    ctxBoard.lineWidth = 3.6 * (1 - rk) + 0.5;
     ctxBoard.stroke();
-    // 火花
-    const n = i === MOVES.length - 1 ? 30 : 16;
+    const n = i === MOVES.length - 1 ? 34 : 17;
     for (let j = 0; j < n; j++) {
       const a = hash(i * 97 + j * 13.7) * 6.2832;
-      const sp = 70 + hash(i * 31 + j * 7.3) * (i === MOVES.length - 1 ? 420 : 260);
+      const sp = 70 + hash(i * 31 + j * 7.3) * (i === MOVES.length - 1 ? 430 : 270);
       const d = sp * dt;
-      const px = cx + Math.cos(a) * d;
-      const py = cy + Math.sin(a) * d + 150 * dt * dt;
+      const px = cx + Math.cos(a) * d, py = cy + Math.sin(a) * d + 150 * dt * dt;
       const al = Math.max(0, 1 - dt / 0.55);
-      ctxBoard.fillStyle = j % 3 === 0
-        ? `rgba(130,205,255,${al})` : `rgba(255,228,150,${al})`;
-      ctxBoard.beginPath(); ctxBoard.arc(px, py, 2.4 * al + 0.5, 0, 6.2832); ctxBoard.fill();
+      ctxBoard.fillStyle = j % 3 === 0 ? `rgba(130,205,255,${al})` : `rgba(255,230,155,${al})`;
+      ctxBoard.beginPath(); ctxBoard.arc(px, py, 2.5 * al + 0.5, 0, 6.2832); ctxBoard.fill();
     }
   }
-
-  // 五连：沿连线喷出的能量 + 十字放射
   if (winDone) {
     const dt = t - T.win;
-    if (dt < 1.5) {
+    if (dt < 1.6) {
       const mid = { x: coordOf(WIN[2][1]), y: coordOf(WIN[2][0]) };
-      for (let j = 0; j < 70; j++) {
+      for (let j = 0; j < 78; j++) {
         const a = hash(j * 17.3) * 6.2832;
-        const sp = 160 + hash(j * 29.1) * 620;
+        const sp = 160 + hash(j * 29.1) * 660;
         const d = sp * dt;
-        const al = Math.max(0, 1 - dt / 1.1) * (0.5 + 0.5 * hash(j * 5.7));
+        const al = Math.max(0, 1 - dt / 1.15) * (0.5 + 0.5 * hash(j * 5.7));
         const px = mid.x + Math.cos(a) * d;
-        const py = mid.y + Math.sin(a) * d * 0.55 + 220 * dt * dt;
-        ctxBoard.fillStyle = j % 4 === 0 ? `rgba(140,210,255,${al})` : `rgba(255,226,140,${al})`;
-        ctxBoard.beginPath(); ctxBoard.arc(px, py, 1 + hash(j * 3.3) * 3.2, 0, 6.2832); ctxBoard.fill();
+        const py = mid.y + Math.sin(a) * d * 0.55 + 230 * dt * dt;
+        ctxBoard.fillStyle = j % 4 === 0 ? `rgba(140,210,255,${al})` : `rgba(255,228,145,${al})`;
+        ctxBoard.beginPath(); ctxBoard.arc(px, py, 1 + hash(j * 3.3) * 3.4, 0, 6.2832); ctxBoard.fill();
       }
     }
   }
 }
 
+/* ---------- 终端逐字打印 ---------- */
+function renderTerm(t, force) {
+  const budget = Math.floor(TERM_TOTAL * easeOut(span(t, T.termStart, T.termStart + T.termDur)));
+  if (!force && renderTerm.last === budget) return;
+  renderTerm.last = budget;
+  let used = 0;
+  const out = TERM.map((line, i) => {
+    const room = budget - used;
+    const visible = room <= 0 ? "" : line.s.slice(0, room);
+    used += line.s.length;
+    const cls = line.c === "" ? "" : ` class="${line.c}"`;
+    const caret = (i === TERM.length - 1 && visible.length === line.s.length && budget >= TERM_TOTAL) ? '<span id="cursor"></span>' : "";
+    return `<div${cls}>${visible.replace(/</g, "&lt;")}${caret}</div>`;
+  }).join("");
+  termBody.innerHTML = out;
+}
+
 /* ---------- 逐帧渲染 ---------- */
 function seek(t) {
+  // 背景
   const drift = t * 12;
-  el("bgGlow").style.transform = `translate3d(${-drift * 0.35}px,${drift * 0.16}px,0) scale(1.14)`;
-  el("bgGrid").style.transform = `translate3d(${-drift * 0.6}px,${drift * 0.26}px,0) scale(1.08)`;
+  el("bgGlow").style.transform = `translate3d(${-drift * 0.3}px,${drift * 0.14}px,0) scale(1.14)`;
+  el("bgGrid").style.transform = `translate3d(${-drift * 0.55}px,${drift * 0.24}px,0) scale(1.1)`;
   drawBack(t);
   drawBoard(t);
   el("flash").style.opacity = String(flashAt(t));
+  el("beat").style.opacity = String(punch(t) * 0.10 + cutPunch(t) * 0.16);
+
+  const pinch = 1 + punch(t) * 0.006 + cutPunch(t) * 0.02;
 
   /* ===== 开场 ===== */
-  const introOn = t < T.introEnd + 0.2;
+  const introOn = t < T.introEnd + 0.25;
   show(el("s1"), introOn);
   if (introOn) {
     const heroK = easeOutQuint(span(t, T.heroIn, T.heroIn + 1.5));
-    const outK = span(t, T.heroOut, T.introEnd + 0.2);
-    const appear = span(t, T.heroIn - 0.05, T.heroIn + 0.25);
-    // 棋盘：从远处带角度飞入，逐渐转正并放大；最后冲向镜头（切场）
-    const fly = easeInOut(span(t, T.heroOut, T.introEnd + 0.2));
+    const outK = span(t, T.heroOut, T.introEnd + 0.25);
+    const fly = easeInOut(span(t, T.heroOut, T.introEnd + 0.25));
     setStyle(hero, {
-      opacity: String(appear * (1 - fly)),
-      transform: `perspective(1500px) `
-        + `translate3d(0,${lerp(90, 0, heroK)}px,${lerp(-520, 0, heroK)}px) `
-        + `rotateX(${lerp(62, 24, heroK)}deg) rotateZ(${lerp(-24, -7, heroK)}deg) `
-        + `scale(${lerp(0.72, 1, heroK) * lerp(1, 2.15, fly)})`,
+      opacity: String(span(t, T.heroIn - 0.06, T.heroIn + 0.22) * (1 - fly)),
+      transform: `perspective(1500px) translate3d(0,${lerp(110, 0, heroK)}px,${lerp(-600, 0, heroK)}px) `
+        + `rotateX(${lerp(64, 22, heroK)}deg) rotateZ(${lerp(-26, -6, heroK)}deg) `
+        + `scale(${lerp(0.7, 1, heroK) * lerp(1, 2.3, fly)})`,
     });
-    // 掠过棋盘的高光
-    const sweepK = span(t, 0.8, 2.3);
+    const sweepK = span(t, 0.75, 2.35);
     setStyle(el("sweep"), {
-      opacity: String(Math.sin(Math.PI * sweepK) * 0.9),
-      transform: `translateX(${lerp(-70, 70, sweepK)}%)`,
+      opacity: String(Math.sin(Math.PI * sweepK) * 0.95),
+      transform: `translateX(${lerp(-72, 72, sweepK)}%)`,
     });
-
-    const titleK = span(t, T.titleIn, T.titleIn + 0.42);
+    const titleK = span(t, T.titleIn, T.titleIn + 0.4);
     const titleEase = easeOutQuint(titleK);
-    setStyle($("#s1 .stack"), { opacity: String(1 - outK), transform: `translateY(${-outK * 60}px)` });
-    setStyle(el("s1kick"), { opacity: String(span(t, T.heroIn, T.heroIn + 0.5)), letterSpacing: `${lerp(0.9, 0.42, easeOut(span(t, T.heroIn, T.heroIn + 0.9)))}em` });
+    setStyle($("#s1 .stack"), { opacity: String(1 - outK), transform: `translateY(${-outK * 70}px)` });
+    setStyle(el("s1kick"), {
+      opacity: String(span(t, T.heroIn, T.heroIn + 0.5)),
+      letterSpacing: `${lerp(0.95, 0.42, easeOut(span(t, T.heroIn, T.heroIn + 0.9)))}em`,
+    });
     setStyle(title, {
       opacity: String(clamp01(titleK * 3)),
-      transform: `scale(${lerp(1.75, 1, titleEase)}) translateY(${lerp(26, 0, titleEase)}px)`,
-      filter: `blur(${lerp(14, 0, clamp01(titleK * 1.6))}px)`,
+      transform: `scale(${lerp(1.85, 1, titleEase)}) translateY(${lerp(30, 0, titleEase)}px)`,
+      filter: `blur(${lerp(16, 0, clamp01(titleK * 1.7))}px)`,
     });
-    // 色差：命中瞬间最强，然后收敛
-    const ca = Math.max(0, 1 - span(t, T.titleIn, T.titleIn + 0.34)) * 0.95;
+    const ca = Math.max(0, 1 - span(t, T.titleIn, T.titleIn + 0.34)) * 1.1;
     title.style.setProperty("--ca", String(ca));
-    title.style.setProperty("--cx", `${ca * 26}px`);
+    title.style.setProperty("--cx", `${ca * 30}px`);
     const subK = easeOut(span(t, T.subIn, T.subIn + 0.6));
-    setStyle(el("s1sub"), { opacity: String(subK * (1 - outK)), transform: `translateY(${(1 - subK) * 26}px)` });
+    setStyle(el("s1sub"), { opacity: String(subK * (1 - outK)), transform: `translateY(${(1 - subK) * 28}px)` });
     const ruleK = easeOut(span(t, T.ruleIn, T.ruleIn + 0.7));
-    setStyle(el("s1rule"), { width: `${ruleK * 520}px`, opacity: String(ruleK * (1 - outK)) });
+    setStyle(el("s1rule"), { width: `${ruleK * 560}px`, opacity: String(ruleK * (1 - outK)) });
   }
 
   /* ===== 主界面 ===== */
-  const appOn = t >= T.appIn - 0.45 && t < T.outIn;
+  const appOn = t >= T.appIn - 0.4 && t < T.toolsIn;
   show(el("app"), appOn);
   if (appOn) {
     const inK = easeOutQuint(span(t, T.appIn, T.appInEnd));
     const sideK = easeOutQuint(span(t, T.sideIn, T.sideInEnd));
     const [, cs, cx2, cy2, crz, crx, cry] = camAt(t);
     setStyle(el("cam"), {
-      transform: `translate3d(${cx2}px,${cy2}px,0) scale(${cs}) rotateZ(${crz}deg) `
-        + `rotateX(${crx}deg) rotateY(${cry}deg)`,
-      opacity: String(inK * (1 - span(t, T.outIn - 0.45, T.outIn))),
+      transform: `translate3d(${cx2}px,${cy2}px,0) scale(${cs * pinch}) rotateZ(${crz}deg) rotateX(${crx}deg) rotateY(${cry}deg)`,
+      opacity: String(inK * (1 - span(t, T.toolsIn - 0.35, T.toolsIn))),
     });
-    setStyle(el("cam").firstElementChild, {
-      transform: `translateY(${(1 - inK) * 90}px)`,
-    });
-    setStyle(el("side"), { transform: `translateX(${(1 - sideK) * 130}px)`, opacity: String(sideK) });
+    setStyle(el("cam").firstElementChild, { transform: `translateY(${(1 - inK) * 110}px)` });
+    setStyle(el("side"), { transform: `translateX(${(1 - sideK) * 150}px)`, opacity: String(sideK) });
 
     chatEls.forEach((node, i) => {
       const at = T.chat[i];
-      const k = easeOutQuint(span(t, at, at + 0.5));
-      setStyle(node, { opacity: String(k), transform: `translateY(${(1 - k) * 22}px) scale(${lerp(0.96, 1, k)})` });
+      const k = easeOutQuint(span(t, at, at + 0.42));
+      setStyle(node, { opacity: String(k), transform: `translateY(${(1 - k) * 26}px) scale(${lerp(0.95, 1, k)})` });
     });
-    const composerAt = T.chat[T.chat.length - 1] + 0.45;
+    const composerAt = T.chat[T.chat.length - 1] + 0.4;
     setStyle(el("composerText"), { opacity: String(0.85 * span(t, composerAt, composerAt + 0.4)) });
     setStyle($(".composer .caret"), { opacity: String(t > composerAt ? (Math.floor(t * 5) % 2 === 0 ? 1 : 0.15) : 0) });
 
-    /* 棋子 */
     let landed = 0;
-    for (let i = 0; i < MOVES.length; i++) if (t >= moveTime(i)) landed = i + 1;
+    for (let i = 0; i < MOVES.length; i++) if (t >= MOVE_T[i]) landed = i + 1;
     const finished = t >= GAME_END;
     stoneEls.forEach((node, i) => {
       if (i >= landed) { node.setAttribute("opacity", "0"); node.removeAttribute("transform"); return; }
-      const k = clamp01((t - moveTime(i)) / 0.17);
-      const scale = 1 + 0.46 * Math.pow(1 - easeOutQuint(k), 2.2);
+      const k = clamp01((t - MOVE_T[i]) / 0.16);
+      const scale = 1 + 0.55 * Math.pow(1 - easeOutQuint(k), 2.4);
       const [row, col] = MOVES[i];
       const px = coordOf(col), py = coordOf(row);
-      const dim = finished && !WIN_KEYS.has(row + ":" + col) ? 0.38 : 1;
-      node.setAttribute("opacity", String(Math.min(1, k * 2.2) * dim));
+      const dim = finished && !WIN_KEYS.has(row + ":" + col) ? 0.36 : 1;
+      node.setAttribute("opacity", String(Math.min(1, k * 2.4) * dim));
       node.setAttribute("transform", `translate(${px} ${py}) scale(${scale}) translate(${-px} ${-py})`);
     });
 
-    /* 最后一手环 */
     const lastRing = el("p-lastRing");
     if (landed > 0 && !finished) {
       const [row, col, color] = MOVES[landed - 1];
-      const since = t - moveTime(landed - 1);
+      const since = t - MOVE_T[landed - 1];
       lastRing.setAttribute("cx", String(coordOf(col)));
       lastRing.setAttribute("cy", String(coordOf(row)));
       lastRing.setAttribute("stroke", color === 1 ? "rgba(255,255,255,.95)" : "rgba(28,20,8,.85)");
-      lastRing.setAttribute("r", String(4.4 * (1 + 0.22 * Math.sin(clamp01(since / 0.45) * Math.PI))));
-      lastRing.setAttribute("opacity", String(clamp01(since / 0.1)));
+      lastRing.setAttribute("r", String(4.4 * (1 + 0.26 * Math.sin(clamp01(since / 0.42) * Math.PI))));
+      lastRing.setAttribute("opacity", String(clamp01(since / 0.09)));
     } else {
       lastRing.setAttribute("opacity", "0");
     }
 
-    /* 取胜连线 */
-    const winK = span(t, T.win, T.win + 0.5);
+    const winK = span(t, T.win, T.win + 0.45);
     if (winK > 0) {
       el("p-winLayer").setAttribute("opacity", "1");
       const len = 4 * STEP;
       el("p-winLine").setAttribute("stroke-dasharray", String(len));
       el("p-winLine").setAttribute("stroke-dashoffset", String(len * (1 - easeOut(winK))));
-      el("p-winGlow").setAttribute("stroke-width", String(8 + (winK > 0.5 ? 4.5 * Math.sin(t * 11) : 0)));
+      el("p-winGlow").setAttribute("stroke-width", String(9 + (winK > 0.5 ? 5.5 * Math.sin(t * 12) : 0)));
     } else {
       el("p-winLayer").setAttribute("opacity", "0");
     }
 
-    /* 棋盘霓虹呼吸：每次落子脉一下 */
     let glow = 0;
     for (let i = Math.max(0, landed - 3); i < landed; i++) {
-      const dt = t - moveTime(i);
+      const dt = t - MOVE_T[i];
       if (dt >= 0 && dt < 0.5) glow = Math.max(glow, 1 - dt / 0.5);
     }
-    if (t >= T.win) glow = Math.max(glow, 0.6 + 0.4 * Math.sin(t * 6));
-    el("boardFrame").style.boxShadow = `0 26px 70px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.07), `
-      + `0 0 ${18 + glow * 60}px rgba(255,200,110,${0.16 + glow * 0.4})`;
+    if (t >= T.win) glow = Math.max(glow, 0.65 + 0.35 * Math.sin(t * 7));
+    el("boardFrame").style.boxShadow = `0 26px 76px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.08), `
+      + `0 0 ${20 + glow * 74}px rgba(255,200,110,${0.16 + glow * 0.45})`;
 
-    /* 状态条 */
     const lastMove = landed > 0 ? MOVES[landed - 1] : null;
     el("pillMoves").textContent = `第 ${landed} 手`;
     el("pillLast").textContent = lastMove === null ? "等待落子"
       : `${lastMove[2] === 1 ? "黑" : "白"} (${lastMove[0]}, ${lastMove[1]}) · ${lastMove[2] === 1 ? "引擎" : "你"}`;
 
-    /* 引擎应手徽章 */
     let badge = null;
     if (!finished && landed > 0) {
       for (let i = landed - 1; i >= Math.max(0, landed - 3); i--) {
         if (MOVES[i][2] !== 1) continue;
-        const since = t - moveTime(i);
-        if (since >= 0 && since < 0.85) { badge = { i, since }; break; }
+        const since = t - MOVE_T[i];
+        if (since >= 0 && since < 0.8) { badge = { i, since }; break; }
       }
     }
     if (badge !== null) {
       const [row, col] = MOVES[badge.i];
-      const pop = easeOutQuint(span(badge.since, 0, 0.14));
-      const fade = 1 - span(badge.since, 0.6, 0.85);
+      const pop = easeOutQuint(span(badge.since, 0, 0.13));
+      const fade = 1 - span(badge.since, 0.55, 0.8);
       latency.innerHTML = `引擎应手 <b>${ENGINE_MS} ms</b> · 第 ${badge.i + 1} 手`;
       setStyle(latency, {
         left: `${coordOf(col) + 18}px`, top: `${coordOf(row) - 54}px`,
         opacity: String(clamp01(pop) * clamp01(fade)),
-        transform: `scale(${lerp(0.7, 1, clamp01(pop))})`,
+        transform: `scale(${lerp(0.68, 1, clamp01(pop))})`,
       });
       show(latency, true);
     } else {
@@ -868,64 +988,80 @@ function seek(t) {
   const kin = kineticAt(t);
   show(kinetic, kin !== null);
   if (kin !== null) {
-    const inK = easeOutQuint(span(t, kin.a, kin.a + 0.42));
-    const outK = span(t, kin.b - 0.35, kin.b);
+    const inK = easeOutQuint(span(t, kin.a, kin.a + 0.4));
+    const outK = span(t, kin.b - 0.32, kin.b);
     setStyle(kinetic, { opacity: String(clamp01(inK) * (1 - outK)) });
     if (el("kinTitle").textContent !== kin.title) {
       el("kinTitle").textContent = kin.title;
       el("kinSub").textContent = kin.sub;
     }
     setStyle(el("kinTitle"), {
-      opacity: "1",
-      transform: `scale(${lerp(1.35, 1, inK)}) translateY(${lerp(20, 0, inK)}px)`,
-      filter: `blur(${lerp(9, 0, clamp01(inK * 1.8))}px)`,
+      transform: `scale(${lerp(1.4, 1, inK)}) translateY(${lerp(24, 0, inK)}px)`,
+      filter: `blur(${lerp(10, 0, clamp01(inK * 1.9))}px)`,
     });
-    setStyle(el("kinSub"), { opacity: String(easeOut(span(t, kin.a + 0.22, kin.a + 0.7))) });
-    setStyle(el("kinRule"), { width: `${easeOut(span(t, kin.a + 0.15, kin.a + 0.8)) * 620}px`, opacity: String(inK) });
+    setStyle(el("kinSub"), { opacity: String(easeOut(span(t, kin.a + 0.2, kin.a + 0.7))) });
+    setStyle(el("kinRule"), { width: `${easeOut(span(t, kin.a + 0.12, kin.a + 0.75)) * 660}px`, opacity: String(inK) });
   }
 
   /* ===== 五连 ===== */
-  const s4On = t >= T.win - 0.35 && t < T.modeIn;
+  const s4On = t >= T.freeze && t < T.toolsIn;
   show(el("s4"), s4On);
   if (s4On) {
-    const k = easeOutQuint(span(t, T.winText, T.winText + 0.5));
-    const outK = span(t, T.modeIn - 0.4, T.modeIn);
+    const k = easeOutQuint(span(t, T.winText, T.winText + 0.45));
+    const outK = span(t, T.toolsIn - 0.35, T.toolsIn);
     setStyle(el("s4win"), {
       opacity: String(clamp01(k) * (1 - outK)),
-      transform: `scale(${lerp(0.45, 1, k)}) translateY(${-outK * 30}px)`,
+      transform: `scale(${lerp(0.3, 1, k)}) translateY(${-outK * 34}px)`,
     });
-    const wca = Math.max(0, 1 - span(t, T.winText, T.winText + 0.34)) * 1.1;
+    const wca = Math.max(0, 1 - span(t, T.winText, T.winText + 0.32)) * 1.25;
     s4chroma.style.setProperty("--ca", String(wca));
-    s4chroma.style.setProperty("--cx", `${wca * 30}px`);
-    const restK = easeOut(span(t, T.winText + 0.2, T.winText + 0.85));
+    s4chroma.style.setProperty("--cx", `${wca * 34}px`);
+    const restK = easeOut(span(t, T.winText + 0.15, T.winText + 0.75));
     for (const sel of ["#s4sub", ".chips"]) {
-      setStyle($("#s4 " + sel), { opacity: String(restK * (1 - outK)), transform: `translateY(${(1 - restK) * 22}px)` });
+      setStyle($("#s4 " + sel), { opacity: String(restK * (1 - outK)), transform: `translateY(${(1 - restK) * 24}px)` });
     }
-    const shockK = span(t, T.win, T.win + 0.95);
-    setStyle(el("shock"), {
-      opacity: String((1 - shockK) * 0.95),
-      transform: `scale(${lerp(0.15, 10, easeOut(shockK))})`,
+    const s1k = span(t, T.win, T.win + 0.9);
+    setStyle(el("shock"), { opacity: String((1 - s1k) * 0.95), transform: `scale(${lerp(0.15, 11, easeOut(s1k))})` });
+    const s2k = span(t, T.win + 0.12, T.win + 1.05);
+    setStyle(el("shock2"), { opacity: String((1 - s2k) * 0.8), transform: `scale(${lerp(0.15, 13, easeOut(s2k))})` });
+  }
+
+  /* ===== 智能体工具 ===== */
+  const s7On = t >= T.toolsIn && t < T.modeIn;
+  show(el("s7"), s7On);
+  if (s7On) {
+    const inK = easeOutQuint(span(t, T.toolsIn, T.toolsIn + 0.45));
+    const outK = span(t, T.modeIn - 0.32, T.modeIn);
+    setStyle($("#s7 .col"), {
+      opacity: String(inK * (1 - outK)),
+      transform: `translateY(${(1 - inK) * 46}px) scale(${lerp(0.92, 1, inK)}) rotateX(${lerp(14, 0, inK)}deg)`,
     });
+    setStyle($("#s7 .head"), { transform: `scale(${lerp(1.3, 1, easeOutQuint(span(t, T.toolsIn, T.toolsIn + 0.4)))})` });
+    setStyle($("#term"), { boxShadow: `0 40px 110px rgba(0,0,0,.85), 0 0 ${40 + 50 * punch(t)}px rgba(76,141,255,${0.2 + 0.3 * punch(t)})` });
+    renderTerm(t, false);
   }
 
   /* ===== 模式 ===== */
   const s5On = t >= T.modeIn && t < T.outIn;
   show(el("s5"), s5On);
   if (s5On) {
-    const headK = easeOutQuint(span(t, T.modeIn, T.modeIn + 0.45));
-    setStyle($("#s5 .head"), { opacity: String(headK), transform: `translateY(${(1 - headK) * 26}px) scale(${lerp(1.12, 1, headK)})` });
+    const headK = easeOutQuint(span(t, T.modeIn, T.modeIn + 0.42));
+    setStyle($("#s5 .head"), {
+      opacity: String(headK),
+      transform: `translateY(${(1 - headK) * 28}px) scale(${lerp(1.16, 1, headK)})`,
+    });
     cardEls.forEach((node, i) => {
-      const at = T.modeIn + 0.2 + i * 0.13;
-      const k = easeOutQuint(span(t, at, at + 0.5));
+      const at = T.modeIn + 0.18 + i * 0.13;
+      const k = easeOutQuint(span(t, at, at + 0.45));
       setStyle(node, {
         opacity: String(k),
-        transform: `translateY(${(1 - k) * 60}px) rotateX(${lerp(-38, 0, k)}deg) scale(${lerp(0.92, 1, k)})`,
+        transform: `translateY(${(1 - k) * 70}px) rotateX(${lerp(-44, 0, k)}deg) scale(${lerp(0.9, 1, k)})`,
       });
-      const step = t < T.modeIn + 1.35 ? 0 : t < T.modeIn + 1.95 ? 1 : 2;
+      const step = t < T.modeIn + 1.25 ? 0 : t < T.modeIn + 1.8 ? 1 : 2;
       const on = step === i;
       setStyle(glowEls[i], {
-        boxShadow: on ? "0 0 0 2.5px rgba(120,190,255,.95) inset, 0 0 60px rgba(76,141,255,.5)" : "none",
-        background: on ? "linear-gradient(180deg,rgba(76,141,255,.20),rgba(76,141,255,0) 62%)" : "none",
+        boxShadow: on ? "0 0 0 2.5px rgba(130,195,255,.98) inset, 0 0 70px rgba(76,141,255,.55)" : "none",
+        background: on ? "linear-gradient(180deg,rgba(76,141,255,.22),rgba(76,141,255,0) 62%)" : "none",
       });
     });
   }
@@ -933,52 +1069,57 @@ function seek(t) {
   /* ===== 收尾 ===== */
   const s6On = t >= T.outIn;
   show(el("s6"), s6On);
+  show(el("marquee"), s6On);
   if (s6On) {
-    const k = easeOutQuint(span(t, T.outIn + 0.05, T.outIn + 0.75));
-    const fade = 1 - span(t, T.outEnd - 0.8, T.outEnd);
+    const k = easeOutQuint(span(t, T.outIn + 0.05, T.outIn + 0.7));
+    const fade = 1 - span(t, T.outEnd - 0.7, T.outEnd);
     setStyle($("#s6 .col"), {
       opacity: String(clamp01(k) * clamp01(fade)),
-      transform: `translateY(${(1 - k) * 40}px) scale(${lerp(0.94, 1, k)})`,
+      transform: `translateY(${(1 - k) * 44}px) scale(${lerp(0.93, 1, k)})`,
     });
-    setStyle($("#s6 .icon"), { transform: `scale(${lerp(0.5, 1, easeOutQuint(span(t, T.outIn, T.outIn + 0.6)))})` });
+    setStyle($("#s6 .icon"), { transform: `scale(${lerp(0.4, 1, easeOutQuint(span(t, T.outIn, T.outIn + 0.55)))})` });
+    setStyle(el("s6code"), { opacity: String(easeOut(span(t, T.outIn + 0.5, T.outIn + 1.1))) });
+    mqRows.forEach((row, i) => {
+      const dir = i === 0 ? -1 : 1;
+      const off = ((t - T.outIn) * 70 * dir) % 1200;
+      setStyle(row, { transform: `translateX(${-1200 + off}px)`, opacity: String(clamp01(fade)) });
+    });
   }
 
   /* ===== 字幕 ===== */
   const cap = captionAt(t);
   show(el("caption"), cap !== null);
   if (cap !== null) {
-    const k = clamp01(easeOut(span(t, cap.a, cap.a + 0.4)) * (1 - span(t, cap.b - 0.3, cap.b)));
+    const k = clamp01(easeOut(span(t, cap[0], cap[0] + 0.36)) * (1 - span(t, cap[1] - 0.28, cap[1])));
     setStyle(capInner, { opacity: String(k), transform: `translateY(${(1 - k) * 20}px) scale(${lerp(0.96, 1, k)})` });
-    capText.textContent = cap.text;
+    capText.textContent = cap[2];
   }
 
-  /* ===== 屏幕震动（作用在世界层）===== */
+  /* ===== 震动 ===== */
   const [sx, sy, sr] = shakeAt(t);
   el("world").style.transform = `translate3d(${sx}px,${sy}px,0) rotate(${sr}deg)`;
-
   return true;
 }
 
 window.__seek = seek;
 window.__duration = DURATION;
 
-/* 先自检一遍所有要摸的元素都在。
-   为什么值得单独做这一步：seek() 里任何一处 `.innerHTML = ...` 撞上 null，都会在
-   中途抛错，于是**它之后的每个场景整块不动**（大字不出现、字幕不出现、震动没反应），
-   而画面看上去只是"少了几样东西"——最费时间的一类 bug（latency 那个 div 漏掉时，
-   半部片子的元素都停在前一帧）。这里一次性把缺失的 id 报出来，且加载即失败。 */
+/* 加载即自检：seek() 里任何一处摸到 null 都会中途抛错，让它之后的每个场景整块不动，
+   而画面看上去只是"少了几样东西"——最费时间的一类 bug。 */
 const REQUIRED = [
   "stage", "world", "bgGlow", "bgGrid", "fxBack", "s1", "heroBoard", "sweep", "s1kick", "s1title", "s1sub", "s1rule",
   "app", "cam", "side", "msgs", "composerText", "boardFrame", "boardFx", "latency",
   "pillMoves", "pillLast", "kinetic", "kinTitle", "kinSub", "kinRule",
-  "s4", "s4win", "s4sub", "shock", "s5", "s5cards", "s6", "s6icon", "s6code",
-  "caption", "capInner", "capText", "vig", "scan", "bars", "flash",
+  "s4", "s4win", "s4sub", "shock", "shock2", "s7", "term", "termBody", "toolChips",
+  "s5", "s5cards", "s6", "s6icon", "s6code", "marquee",
+  "caption", "capInner", "capText", "vig", "scan", "bars", "beat", "flash",
   "p-stones", "p-winLayer", "p-winLine", "p-winGlow", "p-lastRing",
 ];
 const missing = REQUIRED.filter((id) => document.getElementById(id) === null);
 if (missing.length > 0) throw new Error(`promo.html 缺少元素：#${missing.join(" #")}`);
 
 seek(0);
+renderTerm(0, true);
 </script>
 </body>
 </html>

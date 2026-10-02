@@ -200,12 +200,13 @@ async function main() {
 
   // 顺手导出几张"定妆照"，用于 README / 对话里贴图
   const stills = {
-    'still-01-intro': 2.2,
-    'still-02-dock': 6.2,
-    'still-03-engine': 9.0,
-    'still-04-win': 17.6,
-    'still-05-modes': 21.2,
-    'still-06-outro': 24.2,
+    'still-01-intro': 2.2,      // 开场：3D 棋盘 + 带色差的标题
+    'still-02-dock': 6.0,       // 边聊边下
+    'still-03-engine': 9.0,     // 对局 + 引擎应手徽章
+    'still-04-win': 15.3,       // 五连
+    'still-05-tools': 20.6,     // 智能体工具（终端）
+    'still-06-modes': 23.0,     // 三档模式
+    'still-07-outro': 26.6,     // 收尾 + 特性跑马灯
   };
   for (const [name, t] of Object.entries(stills)) {
     await cdp.send('Runtime.evaluate', { expression: `window.__seek(${t})`, returnByValue: true });
